@@ -1,0 +1,3 @@
+event = "minute"
+description = "Scan applicable schedules and run queued jobs"
+program = "the8020/jobs/scan-schedules"

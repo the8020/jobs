@@ -1,0 +1,4 @@
+schema = 1
+description = "80|20 scheduled jobs and run history"
+documentation_url = "https://github.com/the8020/jobs"
+license = "Apache-2.0"

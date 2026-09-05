@@ -1,0 +1,5 @@
+schema = 1
+description = "Run a program with custom inputs"
+entrypoint = "program.ts"
+uui = true
+discoverable = false

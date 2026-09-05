@@ -1,0 +1,4 @@
+schema = 1
+description = "Scan applicable schedules and run queued jobs"
+entrypoint = "program.ts"
+discoverable = false

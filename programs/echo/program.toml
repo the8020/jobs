@@ -1,0 +1,4 @@
+schema = 1
+description = "Echo job inputs and execution identity"
+entrypoint = "program.ts"
+discoverable = false
