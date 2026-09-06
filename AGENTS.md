@@ -168,9 +168,17 @@ below.
   Expired running records become interrupted without replay, because completion
   is unknown.
 - Manual submission persists first and emits a local jobs-ready event. Remote
-  targets are picked up on their own minute events. Output/log history is
-  bounded and paginated; run timeout is five minutes including ordinary job
-  admission.
+  targets are picked up on their own minute events. Result history is bounded
+  and paginated; run timeout is five minutes including ordinary job admission.
+- Run rows retain results and allocated node/sandbox/Worker/job/context IDs,
+  times, and a saved log position. They contain no copied log messages. Global
+  log retention never removes execution metadata. References returned with
+  execution failures remain available for selected log queries.
+- Run details read one bounded page through `kernel.logs.query` on the exact
+  owning node. First, recent, and next actions replace that page without
+  accumulating history. Expired/unavailable logs leave metadata and results
+  visible. Runs without a returned execution identity never issue an unscoped
+  log search; queued/running runs wait for their execution result.
 - The UUI list links editable details and run history; header actions use the
   shell-owned BACK_EVENT. Screens use the shared UUI Model contract, retaining
   the editor's model across reactive roundtrips. Local checks resolve sibling

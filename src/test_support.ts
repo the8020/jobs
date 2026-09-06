@@ -4,6 +4,7 @@ import {
   kernelDatabaseBackendSymbol,
   type KernelInvoke,
   kernelInvokeSymbol,
+  newId,
   type ProgramRunInput,
 } from "@the8020/kernel";
 import { installContextProvider } from "../../kernel/defaults/config/runtime/deno/context/runtime.ts";
@@ -68,11 +69,10 @@ export class DatabaseFixture {
       username: "robot",
       userId: "user:robot",
       nodeId: this.scope.getStore() ?? "node-a",
-      runtimeGroupId: "rgp-test",
+
       sandboxId: "sandbox",
       workerId: "wrk-test",
-      executionId: "execution",
-      requestId: "request",
+      contextId: "ctx-0123456789",
     }));
     globals[kernelInvokeSymbol] = this.invoke;
   }
@@ -172,7 +172,7 @@ export class DatabaseFixture {
       };
     } else if (name === "event.emit") {
       this.events.push(String(input.name));
-      result = { id: crypto.randomUUID(), listeners: 1 };
+      result = { id: newId("evt"), listeners: 1 };
     } else if (name === "program.run") {
       const selected = input as unknown as ProgramRunInput;
       const node = this.scope.getStore() ?? "node-a";
@@ -181,14 +181,22 @@ export class DatabaseFixture {
       result = {
         state: this.fail ? "failed" : "succeeded",
         failure: this.fail ? "Example failure" : "",
-        executionId: crypto.randomUUID(),
+        executionId: newId("job"),
+        nodeId: node,
+        sandboxId: newId("sbx"),
+        workerId: newId("wrk"),
+        contextId: newId("ctx"),
+        parentContextId: "ctx-0123456789",
+        logPosition: "saved-position",
+        queuedAt: new Date().toISOString(),
+        startedAt: new Date().toISOString(),
+        finishedAt: new Date().toISOString(),
         packageCommit: "commit",
         result: {
           inputs: selected.arguments,
           username: selected.username,
           nodeId: node,
         },
-        logs: [{ level: "info", message: "Example log" }],
       };
     } else throw new Error("Unexpected operation: " + name);
     return { success: true, result };

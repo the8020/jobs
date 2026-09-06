@@ -69,9 +69,13 @@ export interface JobRunSummary {
 export interface JobRun extends JobRunSummary {
   input: JobInput;
   executionId: string;
+  sandboxId: string;
+  workerId: string;
+  contextId: string;
+  parentContextId: string;
+  logPosition: string;
   packageCommit: string;
   result: unknown;
-  logs: { level: string; message: string; fields?: Record<string, unknown> }[];
   failure: string;
   truncated: boolean;
 }

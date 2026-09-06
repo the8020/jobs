@@ -1,5 +1,10 @@
 import { context } from "@the8020/context";
-import { kernel } from "@the8020/kernel";
+import {
+  formatLogRecord,
+  kernel,
+  type LogPage,
+  type LogQuery,
+} from "@the8020/kernel";
 import type { JobDefinition, JobRunSummary } from "./types.ts";
 import { jobStore } from "./store.ts";
 import {
@@ -509,6 +514,7 @@ export async function runHistory(scheduleId = ""): Promise<void> {
 }
 
 export async function runDetail(id: string): Promise<void> {
+  let logView: Pick<LogQuery, "cursor" | "tail"> = {};
   const text = (label: string, long = false) =>
     field(z.string(), {
       label,
@@ -540,6 +546,32 @@ export async function runDetail(id: string): Promise<void> {
     | undefined;
   while (true) {
     const run = await jobStore.runs.inspect(id);
+    let logPage: LogPage | undefined;
+    if (run.executionId && run.nodeId) {
+      try {
+        logPage = await kernel.logs.query({
+          node_id: run.nodeId,
+          job_id: run.executionId,
+          context_id: run.contextId || undefined,
+          from: run.createdAt,
+          position: logView.cursor || logView.tail
+            ? undefined
+            : run.logPosition || undefined,
+          ...logView,
+          limit: 100,
+        });
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          throw error;
+        }
+        logPage = {
+          state: "unavailable",
+          records: [],
+          more: false,
+          scanned_bytes: 0,
+        };
+      }
+    }
     const schema = z.object({
       id: field(z.string(), {
         label: "Run ID",
@@ -590,13 +622,18 @@ export async function runDetail(id: string): Promise<void> {
       output: run.state === "queued" || run.state === "running"
         ? "Pending"
         : JSON.stringify(run.result, null, 2),
-      logs: run.logs.map((log) =>
-        `[${log.level}] ${log.message}${
-          log.fields ? " " + JSON.stringify(log.fields) : ""
-        }`
-      ).join("\n") || "No logs yet.",
+      logs: logPage?.state === "expired"
+        ? "These logs have expired."
+        : logPage?.state === "unavailable"
+        ? "Logs are currently unavailable."
+        : logPage
+        ? logPage.records.map(formatLogRecord).join("\n") ||
+          "No log messages in this page."
+        : run.state === "queued" || run.state === "running"
+        ? "Logs will be available after this run finishes."
+        : "Logs for this run are unavailable.",
       capture: run.truncated
-        ? "Output or logs exceeded the capture limit."
+        ? "Output exceeded the capture limit."
         : "Complete",
     };
     screenModel2 ??= new Model(screenModel2Data);
@@ -647,11 +684,27 @@ export async function runDetail(id: string): Promise<void> {
         },
       },
       header: {
-        actions: [{ id: "refresh", label: "[[icon=refresh]] Refresh" }],
+        actions: [
+          { id: "refresh", label: "[[icon=refresh]] Refresh" },
+          ...(run.executionId
+            ? [
+              { id: "first-logs", label: "First logs" },
+              { id: "recent-logs", label: "Recent logs" },
+            ]
+            : []),
+          ...(logPage?.more && logPage.cursor
+            ? [{ id: "next-logs", label: "Next logs" }]
+            : []),
+        ],
       },
     });
     if (event.action === BACK_EVENT) {
       return;
+    }
+    if (event.action === "first-logs") logView = {};
+    if (event.action === "recent-logs") logView = { tail: true };
+    if (event.action === "next-logs" && logPage?.cursor) {
+      logView = { cursor: logPage.cursor };
     }
   }
 }

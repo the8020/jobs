@@ -19,6 +19,19 @@ Deno.test("job tables index due schedules, node queues, deadlines, and history",
   assertEquals(Schedules.table, "the8020__jobs__schedules");
   assertEquals(Runs.table, "the8020__jobs__runs");
   const schedules = descriptorOf(Schedules), runs = descriptorOf(Runs);
+  assertEquals(runs.columns.some((column) => column.name === "logs"), false);
+  for (
+    const name of [
+      "nodeId",
+      "executionId",
+      "sandboxId",
+      "workerId",
+      "contextId",
+      "logPosition",
+    ]
+  ) {
+    assertEquals(runs.columns.some((column) => column.name === name), true);
+  }
   assertEquals(
     schedules.indexes.some((index) =>
       index.columns.join(",") === "enabled,node,firstRunAt,id"

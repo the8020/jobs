@@ -1,4 +1,5 @@
 import { assert, assertEquals, assertRejects } from "@std/assert";
+import { isId } from "@the8020/kernel";
 import { DatabaseFixture } from "./test_support.ts";
 import type { JobInput } from "./types.ts";
 const { jobStore } = await import("./store.ts");
@@ -14,10 +15,12 @@ const input = (node = "any"): JobInput => ({
 });
 const later = (ms = 5000) => new Date(Date.now() + ms).toISOString();
 
-Deno.test("manual Any races once and captures selected user, group, input and logs", async () => {
+Deno.test("manual Any races once and retains execution identity and log references", async () => {
   const fixture = new DatabaseFixture();
   try {
     const [queued] = await jobStore.submit(input());
+    assert(isId(queued!.id, "jhr"));
+    assert(isId(queued!.occurrenceId, "occ"));
     assertEquals(fixture.events, ["jobs-ready"]);
     await Promise.all([
       fixture.as("node-a", () => scan()),
@@ -28,7 +31,12 @@ Deno.test("manual Any races once and captures selected user, group, input and lo
     assertEquals(run.state, "succeeded");
     assertEquals(run.nodeId, fixture.calls[0]!.node);
     assertEquals(run.input.arguments, [{ value: 42 }]);
-    assertEquals(run.logs[0]!.message, "Example log");
+    assert(isId(run.executionId, "job"));
+    assert(isId(run.sandboxId, "sbx"));
+    assert(isId(run.workerId, "wrk"));
+    assert(isId(run.contextId, "ctx"));
+    assertEquals(run.logPosition, "saved-position");
+    assertEquals("logs" in run, false);
     assertEquals(fixture.calls[0]!.input.username, "robot");
     assertEquals(fixture.calls[0]!.input.sandboxGroup, "batch");
     await fixture.as("node-a", () => scan());
@@ -51,6 +59,7 @@ Deno.test("All calendars advance independently and duplicate minutes do not reru
         schedule: { datetimes: [at], recurrence: null },
       },
     });
+    assert(isId(definition.id, "sch"));
     await fixture.as("node-a", () => scan(now));
     let history = await jobStore.runs.list(definition.id);
     assertEquals(history.items.map((run) => run.nodeId), ["node-a"]);
@@ -129,7 +138,7 @@ Deno.test("Any calendar occurrence is shared despite independent node cursors", 
     fixture.close();
   }
 });
-Deno.test("job calls are parallel and failures retain logs", async () => {
+Deno.test("job calls are parallel and failures retain log references", async () => {
   const fixture = new DatabaseFixture();
   try {
     await jobStore.submit(input());
@@ -148,7 +157,9 @@ Deno.test("job calls are parallel and failures retain logs", async () => {
       const run = await jobStore.runs.inspect(row.id);
       assertEquals(run.state, "failed");
       assertEquals(run.failure, "Example failure");
-      assertEquals(run.logs.length, 1);
+      assert(isId(run.executionId, "job"));
+      assert(isId(run.contextId, "ctx"));
+      assertEquals(run.logPosition, "saved-position");
     }
   } finally {
     fixture.close();
@@ -245,16 +256,9 @@ Deno.test("execution selections are validated and captured output is bounded", a
     await assertRejects(() =>
       jobStore.submit({ ...input(), programId: "missing/package/program" })
     );
-    const result = capture(
-      "x".repeat(300000),
-      Array.from(
-        { length: 600 },
-        (_, i) => ({ level: "info", message: String(i) }),
-      ),
-    );
+    const result = capture("x".repeat(300000));
     assertEquals(result.truncated, true);
-    assertEquals(result.logs.length, 512);
-    assertEquals(result.logs.at(-1)!.message, "599");
+    assertEquals(result.result, "Output exceeded the 256 KiB limit.");
   } finally {
     fixture.close();
   }

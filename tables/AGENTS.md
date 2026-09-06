@@ -15,6 +15,17 @@ Parent DOX: [jobs DOX](../AGENTS.md).
   table identity follows the package and file path.
 - Preserve revision-qualified cursor identities, deterministic occurrence
   identities, immutable queued inputs, and bounded run-result storage.
+- Runs store node/sandbox/Worker/job/context IDs, parent context, a saved log
+  position, and scheduling/execution times. There is no log-message column;
+  global log retention and execution metadata have independent ownership.
+- Schedule IDs are `sch-*`; durable queued/history rows are `jhr-*`, distinct
+  from the kernel's actual `job-*` execution instance. Manual submissions use
+  `occ-*` for the occurrence shared by their target rows. All use the shared
+  ten-character operational suffix; primary-key insertion rejects collisions.
+- Scheduled occurrence and per-node cursor IDs are structured coordination keys
+  containing schedule revision/time or node identity, not random opaque IDs.
+  Preserve them across nodes. The unique occurrence/target index prevents
+  duplicate execution when independent nodes materialize the same occurrence.
 
 # Work Guidance
 

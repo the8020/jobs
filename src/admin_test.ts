@@ -2,9 +2,12 @@ import type { JobRun } from "./types.ts";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { assertEquals, assertRejects } from "@std/assert";
 import {
+  formatLogRecord,
   kernelDatabaseBackendSymbol,
   type KernelInvoke,
   kernelInvokeSymbol,
+  type LogPage,
+  type LogRecord,
 } from "@the8020/kernel";
 import {
   BACK_EVENT,
@@ -106,7 +109,7 @@ const run: JobRun = {
   programId: "the8020/jobs/echo",
   username: "robot",
   targetNode: "any",
-  nodeId: "node-a",
+  nodeId: "nod-aaaaaaaaaa",
   state: "succeeded",
   scheduledAt: "2026-09-04T12:00:00Z",
   createdAt: "2026-09-04T12:00:00Z",
@@ -121,15 +124,37 @@ const run: JobRun = {
     sandboxGroup: "batch",
     schedule: { datetimes: [], recurrence: null },
   },
-  executionId: "exec-1",
+  executionId: "job-0123456789",
+  sandboxId: "sbx-0123456789",
+  workerId: "wrk-0123456789",
+  contextId: "ctx-0123456789",
+  parentContextId: "ctx-abcdefghij",
+  logPosition: "saved-position",
   packageCommit: "abc",
   result: { value: 42 },
-  logs: [{ level: "info", message: "Completed" }],
   failure: "",
   truncated: false,
 };
 
+const runLog: LogRecord = {
+  time: "2026-09-04T12:00:00.500Z",
+  level: "INFO",
+  source: "deno",
+  component: "worker",
+  node_id: run.nodeId,
+  sandbox_id: run.sandboxId,
+  worker_id: run.workerId,
+  context_id: run.contextId,
+  job_id: run.executionId,
+  username: run.username,
+  object: "program:" + run.programId,
+  message: "Completed",
+  segment: "segment",
+  offset: 0,
+};
+
 test("manual screen selects execution options and opens captured output", async () => {
+  let logState: LogPage["state"] = "ok";
   const calls: { operation: string; input: Record<string, unknown> }[] = [];
   const originalSubmit = jobStore.submit,
     originalInspect = jobStore.runs.inspect;
@@ -171,6 +196,15 @@ test("manual screen selects execution options and opens captured output", async 
         },
         "jobs.submit": [run],
         "jobs.runs.inspect": run,
+        "logs.query": {
+          state: logState,
+          records: logState === "ok"
+            ? [{ ...runLog, message: args.cursor ? "Next page" : "Completed" }]
+            : [],
+          cursor: logState === "ok" ? "next" : undefined,
+          more: logState === "ok",
+          scanned_bytes: 100,
+        },
       };
       if (!(name in values)) throw new Error(name);
       return Promise.resolve({ success: true, result: values[name] });
@@ -182,11 +216,10 @@ test("manual screen selects execution options and opens captured output", async 
     username: "robot",
     userId: "user:robot",
     nodeId: "node-a",
-    runtimeGroupId: "rgp-test",
+
     sandboxId: "sbx-test",
     workerId: "wrk-test",
-    executionId: "exec-test",
-    requestId: "request-test",
+    contextId: "ctx-0123456789",
   }));
   const channel = new Channel(), unbind = bindSession(channel);
   try {
@@ -222,18 +255,59 @@ test("manual screen selects execution options and opens captured output", async 
     );
     assertEquals(
       (result.model as Record<string, unknown>).logs,
-      "[info] Completed",
+      formatLogRecord(runLog),
     );
+    assertEquals(calls.find((call) => call.operation === "logs.query")!.input, {
+      node_id: run.nodeId,
+      job_id: run.executionId,
+      context_id: run.contextId,
+      from: run.createdAt,
+      position: run.logPosition,
+      limit: 100,
+    });
     const submit = calls.find((call) => call.operation === "jobs.submit")!;
     assertEquals(submit.input, { ...run.input });
     const count = channel.screens.length;
     channel.push(result, "refresh");
     const refreshed = await channel.screen(count + 1, "job-run");
-    channel.push(refreshed, BACK_EVENT);
+    channel.push(refreshed, "next-logs");
+    const next = await channel.screen(count + 2, "job-run");
+    const logCall = calls.filter((call) => call.operation === "logs.query").at(
+      -1,
+    )!;
+    assertEquals(logCall.input.cursor, "next");
+    assertEquals(logCall.input.position, undefined);
+    assertEquals(
+      (next.model as Record<string, unknown>).logs,
+      formatLogRecord({ ...runLog, message: "Next page" }),
+    );
+    logState = "expired";
+    channel.push(next, "refresh");
+    const expired = await channel.screen(count + 3, "job-run");
+    assertEquals(
+      (expired.model as Record<string, unknown>).logs,
+      "These logs have expired.",
+    );
+    assertEquals(
+      (expired.model as Record<string, unknown>).output,
+      JSON.stringify(run.result, null, 2),
+    );
+    logState = "unavailable";
+    channel.push(expired, "refresh");
+    const unavailable = await channel.screen(count + 4, "job-run");
+    assertEquals(
+      (unavailable.model as Record<string, unknown>).logs,
+      "Logs are currently unavailable.",
+    );
+    assertEquals(
+      (unavailable.model as Record<string, unknown>).state,
+      "succeeded",
+    );
+    channel.push(unavailable, BACK_EVENT);
     await pending;
     assertEquals(
       calls.filter((call) => call.operation === "jobs.runs.inspect").length,
-      2,
+      5,
     );
   } finally {
     unbind();
@@ -304,11 +378,10 @@ for (const failing of [false, true]) {
       username: "robot",
       userId: "user:robot",
       nodeId: "node-a",
-      runtimeGroupId: "rgp-test",
+
       sandboxId: "sbx-test",
       workerId: "wrk-test",
-      executionId: "exec-test",
-      requestId: "request-test",
+      contextId: "ctx-0123456789",
     }));
     const originalSubmit = jobStore.submit;
     jobStore.submit = () => {

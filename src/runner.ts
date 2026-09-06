@@ -6,7 +6,7 @@ import Cursors from "../tables/cursors.ts";
 import Runs, { type RunRow } from "../tables/runs.ts";
 import { advance } from "./calendar.ts";
 import { definition, enabledNodes, json, queuedRun } from "./store.ts";
-import type { JobInput, JobRun } from "./types.ts";
+import type { JobInput } from "./types.ts";
 
 const shortTransaction = { lockTimeoutMs: 25, timeoutMs: 2000 };
 const executionTimeoutMs = 5 * 60 * 1000;
@@ -185,7 +185,12 @@ async function execute(run: RunRow, nodeId: string): Promise<void> {
     failure = "",
     executionId = "",
     packageCommit = "";
-  let result: unknown = null, logs: JobRun["logs"] = [];
+  let result: unknown = null;
+  let sandboxId = "",
+    workerId = "",
+    contextId = "",
+    parentContextId = "",
+    logPosition = "";
   try {
     const completed = await kernel.programs.run({
       programId: input.programId,
@@ -195,19 +200,24 @@ async function execute(run: RunRow, nodeId: string): Promise<void> {
       timeoutMs: executionTimeoutMs,
     });
     ({ state, failure, executionId, packageCommit } = completed);
+    ({ sandboxId, workerId, contextId, parentContextId, logPosition } =
+      completed);
     result = completed.result;
-    logs = completed.logs ?? [];
   } catch (error) {
     failure = error instanceof Error ? error.message : String(error);
   }
-  const captured = capture(result, logs);
+  const captured = capture(result);
   await db.updateTable(Runs.table).set({
     state,
     failure: failure.slice(0, 8192),
     executionId,
+    sandboxId,
+    workerId,
+    contextId,
+    parentContextId,
+    logPosition,
     packageCommit,
     result: json(captured.result),
-    logs: json(captured.logs),
     truncated: captured.truncated,
     finishedAt: new Date(),
   })
@@ -220,8 +230,7 @@ async function execute(run: RunRow, nodeId: string): Promise<void> {
 
 export function capture(
   result: unknown,
-  logs: JobRun["logs"],
-): { result: unknown; logs: JobRun["logs"]; truncated: boolean } {
+): { result: unknown; truncated: boolean } {
   const bytes = (value: unknown) =>
     new TextEncoder().encode(JSON.stringify(value)).length;
   let truncated = false;
@@ -230,21 +239,5 @@ export function capture(
     result = "Output exceeded the 256 KiB limit.";
     truncated = true;
   }
-  const tail: JobRun["logs"] = [];
-  let size = 0;
-  for (let i = logs.length - 1; i >= 0; i--) {
-    const log = { ...logs[i]! };
-    if (log.message.length > 8192) {
-      log.message = log.message.slice(0, 8192);
-      truncated = true;
-    }
-    const length = bytes(log);
-    if (size + length > 256 * 1024 || tail.length === 512) {
-      truncated = true;
-      break;
-    }
-    tail.push(log);
-    size += length;
-  }
-  return { result, logs: tail.reverse(), truncated };
+  return { result, truncated };
 }

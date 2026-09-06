@@ -1,4 +1,4 @@
-import { kernel } from "@the8020/kernel";
+import { kernel, newId } from "@the8020/kernel";
 import { db, type JSONValue } from "/p/the8020/db/mod.ts";
 import { z } from "@the8020/http";
 import Users from "/p/the8020/users/tables/users.ts";
@@ -149,7 +149,7 @@ export function queuedRun(
   at: Date,
 ) {
   return {
-    id: `run:${occurrenceId}:${encodeURIComponent(target)}`,
+    id: newId("jhr"),
     scheduleId,
     occurrenceId,
     name: input.name,
@@ -165,9 +165,13 @@ export function queuedRun(
     deadlineAt: null,
     input: json(input),
     executionId: "",
+    sandboxId: "",
+    workerId: "",
+    contextId: "",
+    parentContextId: "",
+    logPosition: "",
     packageCommit: "",
     result: null,
-    logs: [],
     failure: "",
     truncated: false,
   };
@@ -211,7 +215,7 @@ async function submit(
   if (!targets.length || targets.length > 256) {
     throw new Error("Select between 1 and 256 enabled nodes.");
   }
-  const occurrenceId = crypto.randomUUID(), at = new Date();
+  const occurrenceId = newId("occ"), at = new Date();
   const rows = targets.map((target) =>
     queuedRun(selected, scheduleId, occurrenceId, target, at)
   );
@@ -241,7 +245,7 @@ export const jobStore = {
       firstRunAt: nextRunAt,
       updatedAt: now,
     };
-    const id = request.id || crypto.randomUUID();
+    const id = request.id || newId("sch");
     if (request.id) {
       const updated = await db.updateTable(Schedules.table).set({
         ...values,
@@ -308,9 +312,13 @@ export const jobStore = {
         ...runSummary(row),
         input: row.input as unknown as JobInput,
         executionId: row.executionId,
+        sandboxId: row.sandboxId,
+        workerId: row.workerId,
+        contextId: row.contextId,
+        parentContextId: row.parentContextId,
+        logPosition: row.logPosition,
         packageCommit: row.packageCommit,
         result: row.result,
-        logs: row.logs as unknown as JobRun["logs"],
         failure: row.failure,
         truncated: row.truncated,
       };
