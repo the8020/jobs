@@ -15,6 +15,9 @@ Parent DOX: [jobs DOX](../AGENTS.md).
   table identity follows the package and file path.
 - Preserve revision-qualified cursor identities, deterministic occurrence
   identities, immutable queued inputs, and bounded run-result storage.
+- Schedule/run program and username columns reuse the semantic package/user
+  fields through `t.from`; sandbox/Worker references reuse admin-core fields.
+  SQL types and table-local keys remain unchanged.
 - Runs store node/sandbox/Worker/job/context IDs, parent context, a saved log
   position, and scheduling/execution times. There is no log-message column;
   global log retention and execution metadata have independent ownership.

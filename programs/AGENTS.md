@@ -13,7 +13,7 @@ Parent DOX: [jobs DOX](../AGENTS.md).
 # Local Contracts
 
 - Jobs and hidden run-program declare `uui = true`; the latter accepts an
-  optional selected program ID.
+  optional selected program ID. Jobs accepts an optional schedule ID.
 - Interactive UUI execution uses the current session through ordinary
   invocation; scheduled submissions use generic kernel jobs.
 

@@ -174,11 +174,18 @@ below.
   times, and a saved log position. They contain no copied log messages. Global
   log retention never removes execution metadata. References returned with
   execution failures remain available for selected log queries.
-- Run details read one bounded page through `kernel.logs.query` on the exact
-  owning node. First, recent, and next actions replace that page without
-  accumulating history. Expired/unavailable logs leave metadata and results
-  visible. Runs without a returned execution identity never issue an unscoped
-  log search; queued/running runs wait for their execution result.
+- The Logs page of a run reads one bounded page through `kernel.logs.query` on
+  the exact owning node. First, recent, and next actions replace that page
+  without accumulating history. Expired/unavailable logs leave metadata and
+  results visible. Runs without a returned execution identity never issue an
+  unscoped log search; queued/running runs wait for their execution result.
+- The UUI list prioritizes name, program, status, and next UTC run. Editors keep
+  inputs, execution user, and timing visible. Advanced owns searchable node
+  selection, sandbox sharing, and month restrictions, with the same draft.
+  Results show outcome, timing, program/user links, and output; Logs and
+  Advanced open separate pages. Advanced includes linked sandbox/Worker
+  references. Opening the result overview does not query logs. Run history can
+  open the owning schedule through the public Jobs entrypoint.
 - The UUI list links editable details and run history; header actions use the
   shell-owned BACK_EVENT. Screens use the shared UUI Model contract, retaining
   the editor's model across reactive roundtrips. Local checks resolve sibling
@@ -191,8 +198,19 @@ below.
   user, sandbox group, and node controls apply to job submissions; query inputs
   persist when the program selector changes. Schedules continue to use generic
   job execution.
+- Program and user inputs reuse semantic fields from packages/users and open
+  searchable field help instead of preloading select options. References in
+  schedule/run tables and list columns use the same definitions. The store
+  retains final program/account eligibility validation.
 
 # Work Guidance
+
+- Keep scheduling, claims, eligibility, and durable history in this standalone
+  Deno package. Reuse ordinary programs and events; extend the kernel only for
+  a necessary generic execution capability.
+- Keep claims short, dispatch and history bounded, and the outcome of
+  interrupted work explicit. Verify shared runtime or database repairs at
+  their owner and through the scheduler path.
 
 - Keep forms simple and label UTC explicitly. Keep implementation details here.
 - Change shared database transport/codec/lock behavior in its owning layer.

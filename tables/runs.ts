@@ -5,14 +5,18 @@ import {
   table,
   type TableDatabase,
 } from "/p/the8020/db/mod.ts";
+import { programId } from "/p/the8020/packages/types/program.ts";
+import { username } from "/p/the8020/users/types/user.ts";
+
+import { sandboxId, workerId } from "/p/the8020/admin-core/types/runtime.ts";
 
 const Runs = table("the8020__jobs__runs", {
   id: t.text().primaryKey(),
   scheduleId: t.text(),
   occurrenceId: t.text(),
   name: t.text(),
-  programId: t.text(),
-  username: t.text(),
+  programId: t.from(programId),
+  username: t.from(username),
   targetNode: t.text(),
   nodeId: t.text(),
   state: t.enum(
@@ -25,8 +29,8 @@ const Runs = table("the8020__jobs__runs", {
   deadlineAt: t.datetime().nullable(),
   input: t.json(),
   executionId: t.text(),
-  sandboxId: t.text(),
-  workerId: t.text(),
+  sandboxId: t.from(sandboxId),
+  workerId: t.from(workerId),
   contextId: t.text(),
   parentContextId: t.text(),
   logPosition: t.text(),

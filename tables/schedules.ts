@@ -5,13 +5,15 @@ import {
   table,
   type TableDatabase,
 } from "/p/the8020/db/mod.ts";
+import { programId } from "/p/the8020/packages/types/program.ts";
+import { username } from "/p/the8020/users/types/user.ts";
 
 const Schedules = table("the8020__jobs__schedules", {
   id: t.text().primaryKey(),
   name: t.text(),
-  programId: t.text(),
+  programId: t.from(programId),
   arguments: t.json(),
-  username: t.text(),
+  username: t.from(username),
   sandboxGroup: t.text(),
   node: t.text().default("any"),
   schedule: t.json(),

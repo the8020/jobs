@@ -97,7 +97,13 @@ class Channel {
       if (screen) return screen;
       await new Promise((resolve) => setTimeout(resolve, 1));
     }
-    throw new Error(`screen ${count} not shown`);
+    throw new Error(
+      `screen ${count} not shown: ${
+        JSON.stringify(this.messages.filter((message) =>
+          (message as { type: string }).type !== "presentation.show"
+        ))
+      }`,
+    );
   }
 }
 
@@ -228,18 +234,21 @@ test("manual screen selects execution options and opens captured output", async 
     const screen = await channel.screen(1);
     assertEquals((screen.model as Record<string, unknown>).node, "any");
     const node = screen.controls.find((control) => control.bind === "node")!;
-    assertEquals(node.options?.map((option) => option.label), [
-      "Any",
-      "All",
-      "node-a",
-    ]);
-    channel.push(screen, "run", [
+    assertEquals(node.hidden, true);
+    assertEquals(node.options, undefined);
+    channel.push(screen, "advanced", [
       { bind: "name", value: "Example" },
       { bind: "programId", value: "the8020/jobs/echo" },
       { bind: "arguments", value: '[{"value":42}]' },
-      { bind: "sandboxGroup", value: "batch" },
     ]);
-    const result = await channel.screen(2, "job-run");
+    const advanced = await channel.screen(2, "job-editor-advanced");
+    channel.push(advanced, "done", [{ bind: "sandboxGroup", value: "batch" }]);
+    const editor = await channel.screen(
+      channel.screens.length + 2,
+      "job-editor",
+    );
+    channel.push(editor, "run");
+    const result = await channel.screen(channel.screens.length + 1, "job-run");
     assertEquals(
       result.id,
       "job-run",
@@ -253,8 +262,14 @@ test("manual screen selects execution options and opens captured output", async 
       (result.model as Record<string, unknown>).output,
       JSON.stringify({ value: 42 }, null, 2),
     );
+    assertEquals(calls.some((call) => call.operation === "logs.query"), false);
+    channel.push(result, "logs");
+    const logs = await channel.screen(
+      channel.screens.length + 1,
+      "job-run-logs",
+    );
     assertEquals(
-      (result.model as Record<string, unknown>).logs,
+      (logs.model as Record<string, unknown>).logs,
       formatLogRecord(runLog),
     );
     assertEquals(calls.find((call) => call.operation === "logs.query")!.input, {
@@ -268,10 +283,10 @@ test("manual screen selects execution options and opens captured output", async 
     const submit = calls.find((call) => call.operation === "jobs.submit")!;
     assertEquals(submit.input, { ...run.input });
     const count = channel.screens.length;
-    channel.push(result, "refresh");
-    const refreshed = await channel.screen(count + 1, "job-run");
+    channel.push(logs, "refresh");
+    const refreshed = await channel.screen(count + 1, "job-run-logs");
     channel.push(refreshed, "next-logs");
-    const next = await channel.screen(count + 2, "job-run");
+    const next = await channel.screen(count + 2, "job-run-logs");
     const logCall = calls.filter((call) => call.operation === "logs.query").at(
       -1,
     )!;
@@ -283,7 +298,7 @@ test("manual screen selects execution options and opens captured output", async 
     );
     logState = "expired";
     channel.push(next, "refresh");
-    const expired = await channel.screen(count + 3, "job-run");
+    const expired = await channel.screen(count + 3, "job-run-logs");
     assertEquals(
       (expired.model as Record<string, unknown>).logs,
       "These logs have expired.",
@@ -294,7 +309,7 @@ test("manual screen selects execution options and opens captured output", async 
     );
     logState = "unavailable";
     channel.push(expired, "refresh");
-    const unavailable = await channel.screen(count + 4, "job-run");
+    const unavailable = await channel.screen(count + 4, "job-run-logs");
     assertEquals(
       (unavailable.model as Record<string, unknown>).logs,
       "Logs are currently unavailable.",
@@ -304,10 +319,15 @@ test("manual screen selects execution options and opens captured output", async 
       "succeeded",
     );
     channel.push(unavailable, BACK_EVENT);
+    const overview = await channel.screen(
+      channel.screens.length + 2,
+      "job-run",
+    );
+    channel.push(overview, BACK_EVENT);
     await pending;
     assertEquals(
       calls.filter((call) => call.operation === "jobs.runs.inspect").length,
-      5,
+      7,
     );
   } finally {
     unbind();

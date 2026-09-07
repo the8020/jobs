@@ -22,7 +22,7 @@ Parent DOX: [jobs DOX](../AGENTS.md).
 - The runner stores bounded results plus execution IDs and the saved log
   position returned by the shared program API, including on failure. It never
   receives or stores a log array. Metadata lists do not query logs.
-- Selected run details use one 100-record page from the owning node's unified
+- Selected run Logs pages use one 100-record page from the owning node's unified
   logger; page replacement and opaque cursors keep view memory bounded. Readable
   record formatting belongs to the shared SDK. Expiry/storage/node failures
   affect the log field without hiding execution metadata or results.
@@ -30,10 +30,21 @@ Parent DOX: [jobs DOX](../AGENTS.md).
   creation time as a conservative lower bound. Execution completion is not a
   log-capture deadline; it must not exclude the terminal event or later
   diagnostics. Reads still return a bounded page and cursor.
+- Keep placement/month restrictions in Advanced, result output in the overview,
+  and logs/diagnostics in their own pages. Runtime references reuse admin-core
+  fields; program/account references reuse their owning package fields.
 - Retain UUI editor models and positional inputs across roundtrips and program
   selection.
+- Program and user references reuse package-owned fields in forms and lists.
+  Their help providers search on demand; editor initialization does not fetch or
+  truncate account options. The store owns eligibility checks.
 
 # Work Guidance
+
+- Keep durable claims and run outcomes owned here while ordinary program
+  execution stays in the shared runtime. Retry only under the occurrence
+  contract; an unknown execution outcome is not evidence that work can safely
+  be repeated.
 
 - Label UTC explicitly and repair shared database codec or transaction defects
   in their shared owner.

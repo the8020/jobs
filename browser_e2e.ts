@@ -187,17 +187,26 @@ try {
   await page.screen("Jobs");
   await page.button("Run program");
   await page.screen("Run program");
+  await page.button("Advanced");
+  await page.screen("Advanced job settings");
+  await page.button("Edit Node: field help");
+  await page.screen("Node");
   const choices = await page.evaluate<string[]>(
-    `[...document.querySelector('[data-bind="node"]').options].map((item)=>item.textContent)`,
+    `[...document.querySelectorAll('[data-layout-id="choices"] tbody tr[data-row-index]')].map(row => row.cells[0].textContent.trim())`,
   );
   assert(
     choices[0] === "Any" && choices[1] === "All" && choices.length >= 3,
-    "node selector order",
+    "node help order",
   );
+  const exactNode = `node:${choices[2]}`;
+  await page.row("Any");
+  await page.screen("Advanced job settings");
+  await page.set("sandboxGroup", "browser-jobs");
+  await page.button("Done");
+  await page.screen("Run program");
   await page.set("name", "Browser manual");
   await page.set("programId", "the8020/jobs/echo");
   await page.set("arguments", '[ {"message":"browser job"}, 42 ]');
-  await page.set("sandboxGroup", "browser-jobs");
   await page.button("Run");
   await page.screen("Run Browser manual");
   await refreshUntil(
@@ -212,37 +221,46 @@ try {
       output.includes('"username": "robot"'),
     "captured result and execution user",
   );
+  await page.button("Logs");
+  await page.screen("Logs · Browser manual");
   assert(
     await page.evaluate<boolean>(
       `document.querySelector('[data-bind="logs"]').value.includes('Job finished')`,
     ),
     "captured logs",
   );
+  await page.button("Back");
+  await page.screen("Run Browser manual");
   await page.screenshot("manual-run");
   await page.button("Back");
   await page.screen("Jobs");
 
   await page.button("Run program");
   await page.screen("Run program");
-  const exactNode = await page.evaluate<string>(
-    `document.querySelector('[data-bind="node"]').options[2].value`,
-  );
   await page.set("name", "Browser exact node");
   await page.set("programId", "the8020/jobs/echo");
   await page.set("arguments", '["exact node"]');
+  await page.button("Advanced");
+  await page.screen("Advanced job settings");
   await page.set("node", exactNode);
+  await page.button("Done");
+  await page.screen("Run program");
   await page.button("Run");
   await page.screen("Run Browser exact node");
   await refreshUntil(
     page,
     `document.querySelector('[data-bind="state"]')?.value === 'succeeded'`,
   );
+  await page.button("Advanced");
+  await page.screen("Advanced · Browser exact node");
   assert(
     await page.evaluate<string>(
       `document.querySelector('[data-bind="node"]').value`,
     ) === exactNode.slice(5),
     "exact node execution",
   );
+  await page.button("Back");
+  await page.screen("Run Browser exact node");
   await page.button("Back");
   await page.screen("Jobs");
 
@@ -251,7 +269,6 @@ try {
   await page.set("name", "Browser schedule");
   await page.set("programId", "the8020/jobs/echo");
   await page.set("arguments", '["scheduled"]');
-  await page.set("node", "all");
   const first = new Date(Date.now() + 25000),
     second = new Date(Date.now() + 40000);
   await page.set(
@@ -259,6 +276,9 @@ try {
     `${first.toISOString()}\n${second.toISOString()}`,
   );
   await page.set("recurring", true);
+  await page.button("Advanced");
+  await page.screen("Advanced job settings");
+  await page.set("node", "all");
   await page.wait(
     `document.querySelector('[data-bind="months.m12"]') !== null`,
     "month checkboxes",
@@ -269,6 +289,8 @@ try {
     ),
     "all months default on",
   );
+  await page.button("Done");
+  await page.screen("New schedule");
   assert(
     await page.evaluate<boolean>(
       `document.querySelector('[data-bind="weekdays.d1"]') !== null`,
@@ -286,9 +308,13 @@ try {
   );
   await page.set("dates", "1, 15, 31");
   await page.set("times", "09:00, 14:30");
+  await page.button("Advanced");
+  await page.screen("Advanced job settings");
   for (const month of [1, 2, 3, 4, 5, 6, 7, 8, 10, 11]) {
     await page.set(`months.m${month}`, false);
   }
+  await page.button("Done");
+  await page.screen("New schedule");
   await page.screenshot("schedule-editor");
   await page.command("Emulation.setDeviceMetricsOverride", {
     width: 390,

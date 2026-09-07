@@ -19,7 +19,12 @@ import {
   sendMessage,
   z,
 } from "/p/the8020/uui/mod.ts";
-import Users from "/p/the8020/users/tables/users.ts";
+import { username as userField } from "/p/the8020/users/types/user.ts";
+import { programId as programField } from "/p/the8020/packages/types/program.ts";
+import {
+  sandboxId as sandboxField,
+  workerId as workerField,
+} from "/p/the8020/admin-core/types/runtime.ts";
 import {
   argumentsFromText,
   dateText,
@@ -34,21 +39,21 @@ import {
 
 const ScheduleRow = z.object({
   id: z.string(),
-  name: z.string(),
-  program: z.string(),
-  user: z.string(),
+  name: field(z.string(), { label: "Job" }),
+  program: programField,
+  user: userField,
   node: z.string(),
-  enabled: z.boolean(),
-  nextRun: z.string(),
+  status: field(z.string(), { label: "Status" }),
+  nextRun: field(z.string(), { label: "Next run (UTC)" }),
 });
 const RunRow = z.object({
   id: z.string(),
-  name: z.string(),
-  program: z.string(),
-  state: z.string(),
+  name: field(z.string(), { label: "Job" }),
+  program: programField,
+  state: field(z.string(), { label: "Status" }),
   node: z.string(),
-  scheduled: z.string(),
-  finished: z.string(),
+  scheduled: field(z.string(), { label: "Scheduled (UTC)" }),
+  finished: field(z.string(), { label: "Finished (UTC)" }),
 });
 
 function listLayout(
@@ -63,7 +68,8 @@ function listLayout(
   };
 }
 
-export async function jobs(): Promise<void> {
+export async function jobs(scheduleId = ""): Promise<void> {
+  if (scheduleId) return await editJob(true, scheduleId);
   let offset = 0;
   let screenModel: Model<z.infer<typeof screenModelSchema>> | undefined;
   const screenModelSchema = z.object({ schedules: z.array(ScheduleRow) });
@@ -76,7 +82,7 @@ export async function jobs(): Promise<void> {
         program: item.programId,
         user: item.username,
         node: nodeText(item.node),
-        enabled: item.enabled,
+        status: item.enabled ? "Scheduled" : "Paused",
         nextRun: dateText(item.nextRunAt),
       })),
     };
@@ -90,9 +96,7 @@ export async function jobs(): Promise<void> {
       layout: listLayout("jobs-list", "schedules", [
         "name",
         "program",
-        "user",
-        "node",
-        "enabled",
+        "status",
         "nextRun",
       ]),
       header: {
@@ -123,33 +127,16 @@ export async function jobs(): Promise<void> {
 }
 
 async function choices() {
-  const [programs, users, topology] = await Promise.all([
+  const [programs, topology] = await Promise.all([
     kernel.programs.list(),
-    Users.select([Users.username, Users.enabled]).orderBy(Users.username).limit(
-      2000,
-    ).execute(),
     kernel.nodes.list(),
   ]);
   const nodes = topology as {
     nodes: { node: { id: string; enabled: boolean } }[];
     local_node_id: string;
   };
-  const enabled = users.filter((user) => user.enabled).map((user) =>
-    user.username
-  );
-  if (!users.some((user) => user.username === "system")) enabled.push("system");
   return {
     definitions: programs,
-    programs: [
-      { value: "", label: "Select a program" },
-      ...programs.map((item) => ({
-        value: item.program_id,
-        label: `${item.program_id}${
-          item.description ? ` — ${item.description}` : ""
-        }`,
-      })),
-    ],
-    users: enabled.map((username) => ({ value: username, label: username })),
     nodes: nodeOptions(
       nodes.nodes.filter((item) => item.node.enabled).map((item) =>
         item.node.id
@@ -165,6 +152,7 @@ function editorSchema(
   scheduled: boolean,
   options: Choices,
   interactive: boolean,
+  advanced = false,
 ) {
   return z.object({
     name: field(z.string(), {
@@ -172,11 +160,8 @@ function editorSchema(
       length: "long",
       hidden: interactive,
     }),
-    programId: field(z.string(), {
-      label: "Program",
-      control: "select",
+    programId: field(programField, {
       length: "long",
-      options: options.programs,
       reactive: !scheduled,
     }),
     arguments: field(z.string(), {
@@ -185,24 +170,35 @@ function editorSchema(
       length: "long",
       rowSpan: 3,
       description:
-        'A JSON array of arguments, for example [{"message":"Hello"}].',
+        'Values passed to the program, in order. Use a JSON array such as `[{"message":"Hello"}]`, or `[]` for no inputs.',
     }),
-    username: field(z.string(), {
+    username: field(userField, {
       label: "Run as",
-      control: "select",
-      options: options.users,
       hidden: interactive,
     }),
     sandboxGroup: field(z.string(), {
       label: "Sandbox group",
       placeholder: "Default",
-      hidden: interactive,
+      hidden: interactive || !advanced,
+      description:
+        "Use a group to share compatible sandboxes with related jobs. Leave blank for the default placement.",
     }),
     node: field(z.string(), {
       label: "Node",
-      control: "select",
-      options: options.nodes,
-      hidden: interactive,
+      valueHelp: ({ query, offset, limit }) => {
+        const matches = options.nodes.filter((item) =>
+          `${item.label} ${item.value}`.toLowerCase().includes(
+            query.trim().toLowerCase(),
+          )
+        );
+        return {
+          items: matches.slice(offset, offset + limit),
+          more: offset + limit < matches.length,
+        };
+      },
+      description:
+        "**Any** runs once on an available node. **All** runs once on each enabled node. Choose an exact node when the work must run there.",
+      hidden: interactive || !advanced,
     }),
     enabled: field(z.boolean(), { label: "Enabled", hidden: !scheduled }),
     datetimes: field(z.string(), {
@@ -234,7 +230,7 @@ function editorSchema(
           field(z.boolean(), {
             label,
             length: "short",
-            hidden: !scheduled || !model.recurring,
+            hidden: !scheduled || !model.recurring || !advanced,
           }),
         ]),
       ),
@@ -296,7 +292,7 @@ function editorLayout(
       id: "execution",
       type: "field-group" as const,
       title: "Execution",
-      controls: ["username", "sandboxGroup", "node"],
+      controls: ["username"],
     }]),
   ];
   if (scheduled) {
@@ -308,12 +304,6 @@ function editorLayout(
     });
     if (model.recurring) {
       groups.push(
-        {
-          id: "months",
-          type: "field-group",
-          title: "Months",
-          controls: months.map((_, i) => `months.m${i + 1}`),
-        },
         {
           id: "days",
           type: "field-group",
@@ -334,8 +324,7 @@ function editorLayout(
     id: "job-editor",
     root: {
       id: "job",
-      type: "section",
-      title: scheduled ? "Schedule" : "Run program",
+      type: "stack",
       children: groups,
     },
   };
@@ -390,6 +379,7 @@ export async function editJob(
             label: scheduled ? "Save" : "Run",
             kind: "primary",
           },
+          ...(!interactive ? [{ id: "advanced", label: "Advanced" }] : []),
           ...(definition
             ? [{ id: "run-saved", label: "Run now" }, {
               id: "history",
@@ -402,6 +392,48 @@ export async function editJob(
     if (event.action === BACK_EVENT) return;
     let interactiveInputs: unknown[] | undefined;
     try {
+      if (event.action === "advanced" && !interactive) {
+        await presentPage(() =>
+          callScreen({
+            id: "job-editor-advanced",
+            title: "Advanced job settings",
+            schema: editorSchema(model, scheduled, options, false, true),
+            model: new Model(model),
+            controls: [
+              "sandboxGroup",
+              "node",
+              ...months.map((_, i) => `months.m${i + 1}`),
+            ].map((bind) => ({ bind })),
+            layout: {
+              schema: 1,
+              id: "job-editor-advanced",
+              root: {
+                id: "advanced-job",
+                type: "stack",
+                children: [
+                  {
+                    id: "placement",
+                    type: "field-group",
+                    title: "Where to run",
+                    controls: ["node", "sandboxGroup"],
+                  },
+                  ...(scheduled && model.recurring
+                    ? [{
+                      id: "months",
+                      type: "field-group" as const,
+                      title: "Months to include",
+                      controls: months.map((_, i) => `months.m${i + 1}`),
+                    }]
+                    : []),
+                ],
+              },
+            },
+            header: {
+              actions: [{ id: "done", label: "Done", kind: "primary" }],
+            },
+          })
+        );
+      }
       if (event.action === "save") {
         definition = await jobStore.save({
           id: definition?.id ?? "",
@@ -488,7 +520,6 @@ export async function runHistory(scheduleId = ""): Promise<void> {
         "name",
         "program",
         "state",
-        "node",
         "scheduled",
         "finished",
       ]),
@@ -513,7 +544,10 @@ export async function runHistory(scheduleId = ""): Promise<void> {
   }
 }
 
-export async function runDetail(id: string): Promise<void> {
+export async function runDetail(
+  id: string,
+  view: "overview" | "logs" | "advanced" = "overview",
+): Promise<void> {
   let logView: Pick<LogQuery, "cursor" | "tail"> = {};
   const text = (label: string, long = false) =>
     field(z.string(), {
@@ -530,6 +564,11 @@ export async function runDetail(id: string): Promise<void> {
         | "state"
         | "program"
         | "user"
+        | "sandbox"
+        | "worker"
+        | "execution"
+        | "context"
+        | "commit"
         | "node"
         | "sandboxGroup"
         | "scheduled"
@@ -547,7 +586,7 @@ export async function runDetail(id: string): Promise<void> {
   while (true) {
     const run = await jobStore.runs.inspect(id);
     let logPage: LogPage | undefined;
-    if (run.executionId && run.nodeId) {
+    if (view === "logs" && run.executionId && run.nodeId) {
       try {
         logPage = await kernel.logs.query({
           node_id: run.nodeId,
@@ -578,18 +617,23 @@ export async function runDetail(id: string): Promise<void> {
         readOnly: true,
         length: "long",
       }),
-      state: text("State"),
-      program: text("Program"),
-      user: text("Run as"),
+      state: text("Status"),
+      program: field(programField, { readOnly: true, length: "long" }),
+      user: field(userField, { label: "Run as", readOnly: true }),
+      sandbox: field(sandboxField, { readOnly: true }),
+      worker: field(workerField, { readOnly: true }),
+      execution: text("Execution ID"),
+      context: text("Context ID"),
+      commit: text("Package commit"),
       node: field(z.string(), {
         label: "Node",
         readOnly: true,
         length: "long",
       }),
       sandboxGroup: text("Sandbox group"),
-      scheduled: text("Scheduled"),
-      started: text("Started"),
-      finished: text("Finished"),
+      scheduled: text("Scheduled (UTC)"),
+      started: text("Started (UTC)"),
+      finished: text("Finished (UTC)"),
       failure: field(z.string(), {
         label: "Failure",
         readOnly: true,
@@ -614,6 +658,11 @@ export async function runDetail(id: string): Promise<void> {
       user: run.username,
       node: run.nodeId || nodeText(run.targetNode),
       sandboxGroup: run.input.sandboxGroup || "Default",
+      sandbox: run.sandboxId,
+      worker: run.workerId,
+      execution: run.executionId,
+      context: run.contextId,
+      commit: run.packageCommit,
       scheduled: dateText(run.scheduledAt),
       started: dateText(run.startedAt),
       finished: dateText(run.finishedAt),
@@ -639,65 +688,127 @@ export async function runDetail(id: string): Promise<void> {
     screenModel2 ??= new Model(screenModel2Data);
     screenModel2.data = screenModel2Data;
     const event = await callScreen({
-      id: "job-run",
-      title: `Run ${run.name}`,
+      id: view === "overview" ? "job-run" : `job-run-${view}`,
+      title: view === "overview"
+        ? `Run ${run.name}`
+        : `${view === "logs" ? "Logs" : "Advanced"} · ${run.name}`,
       schema,
       model: screenModel2,
+      controls: (view === "logs" ? ["logs"] : view === "advanced"
+        ? [
+          "id",
+          "node",
+          "sandboxGroup",
+          "sandbox",
+          "worker",
+          "execution",
+          "context",
+          "commit",
+          "inputs",
+        ]
+        : [
+          "state",
+          "program",
+          "user",
+          "scheduled",
+          "started",
+          "finished",
+          "failure",
+          "output",
+          "capture",
+        ]).map((bind) => ({ bind })),
       layout: {
         schema: 1,
-        id: "job-run",
+        id: `job-run-${view}`,
         root: {
           id: "run",
-          type: "section",
-          title: "Run",
-          children: [
-            {
-              id: "status",
-              type: "field-group",
-              title: "Status",
-              controls: [
-                "id",
-                "state",
-                "program",
-                "user",
-                "node",
-                "sandboxGroup",
-                "scheduled",
-                "started",
-                "finished",
-                "failure",
-              ],
-            },
-            {
-              id: "results",
-              type: "field-group",
-              title: "Inputs and output",
-              controls: ["inputs", "output", "capture"],
-            },
-            {
+          type: "stack",
+          children: view === "overview"
+            ? [
+              {
+                id: "status",
+                type: "detail",
+                controls: [
+                  "state",
+                  "program",
+                  "user",
+                  "scheduled",
+                  "started",
+                  "finished",
+                  "failure",
+                ],
+              },
+              {
+                id: "results",
+                type: "field-group",
+                title: "Result",
+                controls: ["output", "capture"],
+              },
+            ]
+            : view === "logs"
+            ? [{
               id: "logs",
               type: "field-group",
               title: "Logs",
               controls: ["logs"],
-            },
-          ],
+            }]
+            : [
+              {
+                id: "execution",
+                type: "detail",
+                controls: [
+                  "id",
+                  "node",
+                  "sandboxGroup",
+                  "sandbox",
+                  "worker",
+                  "execution",
+                  "context",
+                  "commit",
+                ],
+              },
+              {
+                id: "inputs",
+                type: "field-group",
+                title: "Inputs",
+                controls: ["inputs"],
+              },
+            ],
         },
       },
       header: {
         actions: [
+          ...(view === "overview"
+            ? [
+              { id: "logs", label: "Logs" },
+              { id: "advanced", label: "Advanced" },
+              ...(run.scheduleId
+                ? [{ id: "schedule", label: "Open schedule" }]
+                : []),
+            ]
+            : []),
           { id: "refresh", label: "[[icon=refresh]] Refresh" },
-          ...(run.executionId
+          ...(view === "logs" && run.executionId
             ? [
               { id: "first-logs", label: "First logs" },
               { id: "recent-logs", label: "Recent logs" },
+              ...(logPage?.more && logPage.cursor
+                ? [{ id: "next-logs", label: "Next logs" }]
+                : []),
             ]
-            : []),
-          ...(logPage?.more && logPage.cursor
-            ? [{ id: "next-logs", label: "Next logs" }]
             : []),
         ],
       },
     });
+    if (event.action === "logs" || event.action === "advanced") {
+      await presentPage(() =>
+        runDetail(id, event.action as "logs" | "advanced")
+      );
+    }
+    if (event.action === "schedule" && run.scheduleId) {
+      const { default: schedule } = await import("../programs/jobs/program.ts");
+      await presentPage(() => schedule(run.scheduleId));
+    }
     if (event.action === BACK_EVENT) {
       return;
     }
