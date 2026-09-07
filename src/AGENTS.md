@@ -43,8 +43,8 @@ Parent DOX: [jobs DOX](../AGENTS.md).
 
 - Keep durable claims and run outcomes owned here while ordinary program
   execution stays in the shared runtime. Retry only under the occurrence
-  contract; an unknown execution outcome is not evidence that work can safely
-  be repeated.
+  contract; an unknown execution outcome is not evidence that work can safely be
+  repeated.
 
 - Label UTC explicitly and repair shared database codec or transaction defects
   in their shared owner.

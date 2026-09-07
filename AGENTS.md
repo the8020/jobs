@@ -206,11 +206,11 @@ below.
 # Work Guidance
 
 - Keep scheduling, claims, eligibility, and durable history in this standalone
-  Deno package. Reuse ordinary programs and events; extend the kernel only for
-  a necessary generic execution capability.
+  Deno package. Reuse ordinary programs and events; extend the kernel only for a
+  necessary generic execution capability.
 - Keep claims short, dispatch and history bounded, and the outcome of
-  interrupted work explicit. Verify shared runtime or database repairs at
-  their owner and through the scheduler path.
+  interrupted work explicit. Verify shared runtime or database repairs at their
+  owner and through the scheduler path.
 
 - Keep forms simple and label UTC explicitly. Keep implementation details here.
 - Change shared database transport/codec/lock behavior in its owning layer.
