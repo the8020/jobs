@@ -101,12 +101,11 @@ Deno.test("job fields carry help and node lookup preserves exact target values",
   const help = fieldMetadata(nodeField(nodeOptions(["any", "other"])))
     ?.valueHelp;
   assert(help);
-  assertEquals(await help({ query: " ANY ", offset: 0, limit: 1 }), {
-    items: [{ value: "any", label: "Any" }],
-    more: true,
-  });
-  assertEquals(await help({ query: " ANY ", offset: 1, limit: 1 }), {
-    items: [{ value: "node:any", label: "any" }],
-    more: false,
-  });
+  const query = { search: " ANY ", filters: {}, sort: null };
+  const first = await help({ query, offset: 0, limit: 1 });
+  assertEquals(first.rows, [{ value: "any", label: "Any" }]);
+  assertEquals([first.more, first.totalItems], [true, 2]);
+  const last = await help({ query, offset: 1, limit: 1 });
+  assertEquals(last.rows, [{ value: "node:any", label: "any" }]);
+  assertEquals([last.more, last.totalItems], [false, 2]);
 });

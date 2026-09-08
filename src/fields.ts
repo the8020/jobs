@@ -148,15 +148,20 @@ export const jobInfo = z.object({
 
 export function nodeField(choices: readonly ValueHelpItem<string>[]) {
   return field(jobInfo.shape.node, {
-    valueHelp: ({ query, offset, limit }) => {
-      const search = query.trim().toLowerCase();
-      const matches = choices.filter((item) =>
-        `${item.label} ${item.value}`.toLowerCase().includes(search)
+    valueHelp: async (request) => {
+      const { queryValueHelp } = await import("/p/the8020/uui/lists.ts");
+      return queryValueHelp(
+        z.object({
+          value: jobInfo.shape.node,
+          label: field(z.string(), {
+            label: "Name",
+            description:
+              "Any node, all enabled nodes, or the name of an exact node.",
+          }),
+        }),
+        choices.map((item) => ({ value: item.value, label: item.label })),
+        request,
       );
-      return {
-        items: matches.slice(offset, offset + limit),
-        more: offset + limit < matches.length,
-      };
     },
   });
 }
