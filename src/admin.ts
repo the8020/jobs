@@ -1,3 +1,6 @@
+import { jobInfo, nodeField, runId, scheduleId } from "./fields.ts";
+import { sourceInfo } from "/p/the8020/packages/types/source.ts";
+import { runtimeInfo } from "/p/the8020/admin-core/types/runtime.ts";
 import { context } from "@the8020/context";
 import {
   formatLogRecord,
@@ -19,7 +22,6 @@ import {
   sendMessage,
   z,
 } from "/p/the8020/uui/mod.ts";
-import { username as userField } from "/p/the8020/users/types/user.ts";
 import { programId as programField } from "/p/the8020/packages/types/program.ts";
 import {
   sandboxId as sandboxField,
@@ -38,22 +40,22 @@ import {
 } from "./form.ts";
 
 const ScheduleRow = z.object({
-  id: z.string(),
-  name: field(z.string(), { label: "Job" }),
+  id: scheduleId,
+  name: jobInfo.shape.name,
   program: programField,
-  user: userField,
-  node: z.string(),
-  status: field(z.string(), { label: "Status" }),
-  nextRun: field(z.string(), { label: "Next run (UTC)" }),
+  user: jobInfo.shape.runAs,
+  node: jobInfo.shape.node,
+  status: jobInfo.shape.scheduleStatus,
+  nextRun: jobInfo.shape.nextRun,
 });
 const RunRow = z.object({
-  id: z.string(),
-  name: field(z.string(), { label: "Job" }),
+  id: runId,
+  name: jobInfo.shape.name,
   program: programField,
-  state: field(z.string(), { label: "Status" }),
-  node: z.string(),
-  scheduled: field(z.string(), { label: "Scheduled (UTC)" }),
-  finished: field(z.string(), { label: "Finished (UTC)" }),
+  state: jobInfo.shape.state,
+  node: jobInfo.shape.node,
+  scheduled: jobInfo.shape.scheduled,
+  finished: jobInfo.shape.finished,
 });
 
 function listLayout(
@@ -155,7 +157,7 @@ function editorSchema(
   advanced = false,
 ) {
   return z.object({
-    name: field(z.string(), {
+    name: field(jobInfo.shape.name, {
       label: "Name",
       length: "long",
       hidden: interactive,
@@ -164,59 +166,33 @@ function editorSchema(
       length: "long",
       reactive: !scheduled,
     }),
-    arguments: field(z.string(), {
-      label: "Inputs (JSON)",
+    arguments: field(jobInfo.shape.arguments, {
       control: "textarea",
       length: "long",
       rowSpan: 3,
-      description:
-        'Values passed to the program, in order. Use a JSON array such as `[{"message":"Hello"}]`, or `[]` for no inputs.',
     }),
-    username: field(userField, {
+    username: field(jobInfo.shape.runAs, {
       label: "Run as",
       hidden: interactive,
     }),
-    sandboxGroup: field(z.string(), {
-      label: "Sandbox group",
+    sandboxGroup: field(jobInfo.shape.sandboxGroup, {
       placeholder: "Default",
       hidden: interactive || !advanced,
-      description:
-        "Use a group to share compatible sandboxes with related jobs. Leave blank for the default placement.",
     }),
-    node: field(z.string(), {
-      label: "Node",
-      valueHelp: ({ query, offset, limit }) => {
-        const matches = options.nodes.filter((item) =>
-          `${item.label} ${item.value}`.toLowerCase().includes(
-            query.trim().toLowerCase(),
-          )
-        );
-        return {
-          items: matches.slice(offset, offset + limit),
-          more: offset + limit < matches.length,
-        };
-      },
-      description:
-        "**Any** runs once on an available node. **All** runs once on each enabled node. Choose an exact node when the work must run there.",
-      hidden: interactive || !advanced,
-    }),
-    enabled: field(z.boolean(), { label: "Enabled", hidden: !scheduled }),
-    datetimes: field(z.string(), {
-      label: "Specific datetimes (UTC)",
+    node: field(nodeField(options.nodes), { hidden: interactive || !advanced }),
+    enabled: field(jobInfo.shape.enabled, { hidden: !scheduled }),
+    datetimes: field(jobInfo.shape.datetimes, {
       control: "textarea",
       rowSpan: 3,
       length: "long",
       hidden: !scheduled,
       placeholder: "2026-09-15 09:00\n2026-09-16 14:30",
-      description: "One YYYY-MM-DD HH:MM datetime per line.",
     }),
-    recurring: field(z.boolean(), {
-      label: "Repeat",
+    recurring: field(jobInfo.shape.recurring, {
       reactive: true,
       hidden: !scheduled,
     }),
-    startDate: field(z.string(), {
-      label: "Start date (UTC)",
+    startDate: field(jobInfo.shape.startDate, {
       control: "date",
       hidden: !scheduled || !model.recurring,
     }),
@@ -227,7 +203,7 @@ function editorSchema(
           i,
         ) => [
           `m${i + 1}`,
-          field(z.boolean(), {
+          field(jobInfo.shape.monthIncluded, {
             label,
             length: "short",
             hidden: !scheduled || !model.recurring || !advanced,
@@ -235,8 +211,7 @@ function editorSchema(
         ]),
       ),
     ),
-    dayMode: field(z.enum(["weekdays", "dates"]), {
-      label: "Choose days by",
+    dayMode: field(jobInfo.shape.dayMode, {
       reactive: true,
       hidden: !scheduled || !model.recurring,
       options: [{ value: "weekdays", label: "Days of week" }, {
@@ -251,7 +226,7 @@ function editorSchema(
           i,
         ) => [
           `d${i}`,
-          field(z.boolean(), {
+          field(jobInfo.shape.weekdayIncluded, {
             label,
             length: "short",
             hidden: !scheduled || !model.recurring ||
@@ -260,18 +235,14 @@ function editorSchema(
         ]),
       ),
     ),
-    dates: field(z.string(), {
-      label: "Dates of month",
+    dates: field(jobInfo.shape.dates, {
       hidden: !scheduled || !model.recurring || model.dayMode !== "dates",
       placeholder: "1, 15, 31",
-      description: "Dates missing from a month are skipped.",
     }),
-    times: field(z.string(), {
-      label: "Times (UTC)",
+    times: field(jobInfo.shape.times, {
       length: "long",
       hidden: !scheduled || !model.recurring,
       placeholder: "09:00, 14:30",
-      description: "Separate HH:MM times with commas.",
     }),
   });
 }
@@ -549,9 +520,8 @@ export async function runDetail(
   view: "overview" | "logs" | "advanced" = "overview",
 ): Promise<void> {
   let logView: Pick<LogQuery, "cursor" | "tail"> = {};
-  const text = (label: string, long = false) =>
-    field(z.string(), {
-      label,
+  const text = <T extends z.ZodType>(schema: T, long = false) =>
+    field(schema, {
       readOnly: true,
       ...(long
         ? { control: "textarea" as const, length: "long" as const, rowSpan: 4 }
@@ -580,7 +550,7 @@ export async function runDetail(
         | "logs"
         | "capture",
         string
-      >
+      > & { state: z.infer<typeof jobInfo.shape.state> }
     >
     | undefined;
   while (true) {
@@ -612,41 +582,35 @@ export async function runDetail(
       }
     }
     const schema = z.object({
-      id: field(z.string(), {
-        label: "Run ID",
+      id: field(runId, {
+        open: undefined,
         readOnly: true,
         length: "long",
       }),
-      state: text("Status"),
+      state: text(jobInfo.shape.state),
       program: field(programField, { readOnly: true, length: "long" }),
-      user: field(userField, { label: "Run as", readOnly: true }),
+      user: field(jobInfo.shape.runAs, { label: "Run as", readOnly: true }),
       sandbox: field(sandboxField, { readOnly: true }),
       worker: field(workerField, { readOnly: true }),
-      execution: text("Execution ID"),
-      context: text("Context ID"),
-      commit: text("Package commit"),
-      node: field(z.string(), {
-        label: "Node",
-        readOnly: true,
-        length: "long",
-      }),
-      sandboxGroup: text("Sandbox group"),
-      scheduled: text("Scheduled (UTC)"),
-      started: text("Started (UTC)"),
-      finished: text("Finished (UTC)"),
-      failure: field(z.string(), {
-        label: "Failure",
+      execution: text(jobInfo.shape.executionId),
+      context: text(jobInfo.shape.contextId),
+      commit: text(sourceInfo.shape.commit),
+      node: field(jobInfo.shape.node, { readOnly: true, length: "long" }),
+      sandboxGroup: text(jobInfo.shape.sandboxGroup),
+      scheduled: text(jobInfo.shape.scheduled),
+      started: text(jobInfo.shape.started),
+      finished: text(jobInfo.shape.finished),
+      failure: field(jobInfo.shape.failure, {
         readOnly: true,
         length: "long",
         control: "textarea",
         rowSpan: 2,
         hidden: run.failure === "",
       }),
-      inputs: text("Inputs (JSON)", true),
-      output: text("Output (JSON)", true),
-      logs: text("Logs", true),
-      capture: field(z.string(), {
-        label: "Capture",
+      inputs: text(jobInfo.shape.arguments, true),
+      output: text(jobInfo.shape.output, true),
+      logs: text(runtimeInfo.shape.logs, true),
+      capture: field(jobInfo.shape.capture, {
         readOnly: true,
         hidden: !run.truncated,
       }),

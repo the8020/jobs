@@ -18,6 +18,9 @@ Parent DOX: [jobs DOX](../AGENTS.md).
 - Schedule/run program and username columns reuse the semantic package/user
   fields through `t.from`; sandbox/Worker references reuse admin-core fields.
   SQL types and table-local keys remain unchanged.
+- Job names, schedule/run IDs, targets, enabled/state, execution references, and
+  failures reuse `../src/fields.ts`; commits reuse package source fields. JSON
+  inputs/results and stored datetimes retain their existing representations.
 - Runs store node/sandbox/Worker/job/context IDs, parent context, a saved log
   position, and scheduling/execution times. There is no log-message column;
   global log retention and execution metadata have independent ownership.

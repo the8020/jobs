@@ -114,7 +114,7 @@ below.
 - [programs/AGENTS.md](programs/AGENTS.md): Expose Jobs administration,
   interactive execution, scheduling, and the echo fixture.
 - [src/AGENTS.md](src/AGENTS.md): Implement UTC scheduling, durable claims and
-  history, and Jobs administration models.
+  history, and reusable Jobs fields and administration models.
 - [tables/AGENTS.md](tables/AGENTS.md): Describe authored schedules, per-node
   cursors, and durable run history.
 
@@ -198,6 +198,9 @@ below.
   user, sandbox group, and node controls apply to job submissions; query inputs
   persist when the program selector changes. Schedules continue to use generic
   job execution.
+- Job/calendar/run fields and bounded node help live in `src/fields.ts`, with
+  labels and descriptions shared by forms, lists, and matching table columns.
+  Screen-specific layout and editability remain in `src/admin.ts`.
 - Program and user inputs reuse semantic fields from packages/users and open
   searchable field help instead of preloading select options. References in
   schedule/run tables and list columns use the same definitions. The store

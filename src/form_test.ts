@@ -1,4 +1,6 @@
-import { assertEquals, assertThrows } from "@std/assert";
+import { fieldMetadata } from "/p/the8020/db/fields.ts";
+import { jobInfo, nodeField } from "./fields.ts";
+import { assert, assertEquals, assertThrows } from "@std/assert";
 import { editorModel, inputFromModel, nodeOptions } from "./form.ts";
 
 Deno.test("new jobs default to Any and every month and weekday", () => {
@@ -89,4 +91,22 @@ Deno.test("manual runs ignore calendar fields and reject invalid JSON arguments"
   model.recurring = false;
   model.datetimes = "2026-02-30 12:00";
   assertThrows(() => inputFromModel(model, true), TypeError, "invalid");
+});
+
+Deno.test("job fields carry help and node lookup preserves exact target values", async () => {
+  for (const [name, schema] of Object.entries(jobInfo.shape)) {
+    assert(fieldMetadata(schema)?.label, `${name} needs a label`);
+    assert(fieldMetadata(schema)?.description, `${name} needs help`);
+  }
+  const help = fieldMetadata(nodeField(nodeOptions(["any", "other"])))
+    ?.valueHelp;
+  assert(help);
+  assertEquals(await help({ query: " ANY ", offset: 0, limit: 1 }), {
+    items: [{ value: "any", label: "Any" }],
+    more: true,
+  });
+  assertEquals(await help({ query: " ANY ", offset: 1, limit: 1 }), {
+    items: [{ value: "node:any", label: "any" }],
+    more: false,
+  });
 });

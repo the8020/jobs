@@ -8,7 +8,8 @@ Parent DOX: [jobs DOX](../AGENTS.md).
 # Ownership
 
 - Own calendar calculation, store/types, runner, forms, admin screens, and
-  colocated tests.
+  colocated tests. `fields.ts` owns reusable job, calendar, run, and node-target
+  field metadata.
 
 # Local Contracts
 
@@ -34,7 +35,13 @@ Parent DOX: [jobs DOX](../AGENTS.md).
   and logs/diagnostics in their own pages. Runtime references reuse admin-core
   fields; program/account references reuse their owning package fields.
 - Retain UUI editor models and positional inputs across roundtrips and program
-  selection.
+  selection. Reuse semantic fields for labels/help; keep visibility, reactive
+  controls, and placement in the screens. Month/day controls customize their
+  label while inheriting the shared recurrence help.
+- Node field help pages the supplied enabled-node snapshot, preserving `any`,
+  `all`, and `node:<id>` values even for nodes named any/all. Field imports do
+  not query or open screens. Runtime grouping and logs reuse admin-core fields;
+  source commits reuse package fields.
 - Program and user references reuse package-owned fields in forms and lists.
   Their help providers search on demand; editor initialization does not fetch or
   truncate account options. The store owns eligibility checks.
