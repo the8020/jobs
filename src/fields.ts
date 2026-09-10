@@ -1,6 +1,11 @@
 import { runtimeInfo } from "/p/the8020/admin-core/types/runtime.ts";
 import { username } from "/p/the8020/users/types/user.ts";
-import { field, type ValueHelpItem, z } from "/p/the8020/db/fields.ts";
+import {
+  choiceHelp,
+  field,
+  type ValueHelpItem,
+  z,
+} from "/p/the8020/db/fields.ts";
 
 export const scheduleId: z.ZodString = field(z.string(), {
   label: "Schedule",
@@ -36,6 +41,7 @@ export const jobInfo = z.object({
     label: "Status",
     description:
       "Scheduled jobs can run at their next matching time. Paused jobs do not start new scheduled runs.",
+    valueHelp: choiceHelp(z.string(), ["Scheduled", "Paused"]),
   }),
   state: field(
     z.enum(["queued", "running", "succeeded", "failed", "interrupted"]),
@@ -143,25 +149,15 @@ export const jobInfo = z.object({
     label: "Capture",
     description:
       "Whether the stored result is complete or was shortened because it exceeded the capture limit.",
+    valueHelp: choiceHelp(z.string(), [
+      "Complete",
+      "Output exceeded the capture limit.",
+    ]),
   }),
 });
 
 export function nodeField(choices: readonly ValueHelpItem<string>[]) {
   return field(jobInfo.shape.node, {
-    valueHelp: async (request) => {
-      const { queryValueHelp } = await import("/p/the8020/uui/lists.ts");
-      return queryValueHelp(
-        z.object({
-          value: jobInfo.shape.node,
-          label: field(z.string(), {
-            label: "Name",
-            description:
-              "Any node, all enabled nodes, or the name of an exact node.",
-          }),
-        }),
-        choices.map((item) => ({ value: item.value, label: item.label })),
-        request,
-      );
-    },
+    valueHelp: choiceHelp(jobInfo.shape.node, choices),
   });
 }

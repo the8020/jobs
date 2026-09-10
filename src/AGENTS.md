@@ -46,6 +46,9 @@ Parent DOX: [jobs DOX](../AGENTS.md).
 - Program and user references reuse package-owned fields in forms and lists.
   Their help providers search on demand; editor initialization does not fetch or
   truncate account options. The store owns eligibility checks.
+- Schedule status and result-capture fields offer known choices through shared
+  `choiceHelp`; node snapshots reuse the same helper. Run and recurrence enums
+  retain UUI's inferred choices.
 
 # Work Guidance
 
