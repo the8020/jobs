@@ -159,8 +159,6 @@ export class DatabaseFixture {
         package_id: "the8020/jobs",
         name: "echo",
         commit: "commit",
-        discoverable: false,
-        uui: false,
         entrypoint: "program.ts",
         entrypoint_url:
           "file:///workspace/packages/the8020/jobs/programs/echo/program.ts",

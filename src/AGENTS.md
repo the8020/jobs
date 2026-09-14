@@ -43,6 +43,10 @@ Parent DOX: [jobs DOX](../AGENTS.md).
   `node:<id>` values even for nodes named any/all. Field imports do not query or
   open screens. Runtime grouping and logs reuse admin-core fields; source
   commits reuse package fields.
+- Program display and manual execution mode use `the8020/packages/programs.ts`;
+  metadata errors prevent guessing an interactive/background launch mode. Job
+  eligibility and execution use the native ready-executable contract
+  independently of application metadata.
 - Program and user references reuse package-owned fields in forms and lists.
   Their help providers search on demand; editor initialization does not fetch or
   truncate account options. The store owns eligibility checks.

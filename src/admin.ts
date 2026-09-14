@@ -1,3 +1,4 @@
+import { listPrograms } from "/p/the8020/packages/programs.ts";
 import { jobInfo, nodeField, runId, scheduleId } from "./fields.ts";
 import { sourceInfo } from "/p/the8020/packages/types/source.ts";
 import { runtimeInfo } from "/p/the8020/admin-core/types/runtime.ts";
@@ -130,7 +131,7 @@ export async function jobs(scheduleId = ""): Promise<void> {
 
 async function choices() {
   const [programs, topology] = await Promise.all([
-    kernel.programs.list(),
+    listPrograms(),
     kernel.nodes.list(),
   ]);
   const nodes = topology as {
@@ -419,6 +420,9 @@ export async function editJob(
           program.program_id === model.programId
         );
         if (!selected) throw new TypeError("Select a ready program.");
+        if (selected.metadata_error) {
+          throw new TypeError(selected.metadata_error);
+        }
         if (selected.uui) {
           interactiveInputs = argumentsFromText(model.arguments);
         } else {

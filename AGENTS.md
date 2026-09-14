@@ -208,6 +208,12 @@ below.
 
 # Work Guidance
 
+- Build only what the request and established contracts require. Before adding a
+  mechanism, identify that need and why existing owners or standard tools cannot
+  meet it. Do not invent stronger guarantees for hypothetical cases. Remove
+  unsupported additions at closeout; agent-written tests and DOX do not
+  authorize them. Preserve required correctness, security, and data integrity.
+
 - Keep scheduling, claims, eligibility, and durable history in this standalone
   Deno package. Reuse ordinary programs and events; extend the kernel only for a
   necessary generic execution capability.

@@ -1,6 +1,6 @@
 import { kernel, newId } from "@the8020/kernel";
 import { db, type JSONValue } from "/p/the8020/db/mod.ts";
-import { z } from "@the8020/http";
+import { z } from "/p/the8020/db/fields.ts";
 import Users from "/p/the8020/users/tables/users.ts";
 import Schedules, { type ScheduleRow } from "../tables/schedules.ts";
 import Runs, { type RunRow } from "../tables/runs.ts";
