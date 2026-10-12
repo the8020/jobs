@@ -20,6 +20,11 @@ Parent DOX: [jobs DOX](../AGENTS.md).
   structured scheduled occurrence/cursor keys retain cross-node deduplication.
 - Keep candidate reads and output bounded, preserve immutable queued inputs, and
   never hold transaction locks while a program runs.
+- Claiming a run allocates and persists its canonical `job-*` execution ID
+  before invoking `kernel.programs.run` with that ID. Running detail uses
+  `kernel.programs.inspect` on the owning node for exact Worker heap/CPU, sample
+  time, and live references. Samples stay transient; completed history has no
+  resource-accounting record.
 - The runner stores bounded results plus execution IDs and the saved log
   position returned by the shared program API, including on failure. It never
   receives or stores a log array. Metadata lists do not query logs.

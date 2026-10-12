@@ -179,7 +179,7 @@ export class DatabaseFixture {
       result = {
         state: this.fail ? "failed" : "succeeded",
         failure: this.fail ? "Example failure" : "",
-        executionId: newId("job"),
+        executionId: selected.executionId ?? newId("job"),
         nodeId: node,
         sandboxId: newId("sbx"),
         workerId: newId("wrk"),

@@ -19,6 +19,12 @@ Deno.test("manual Any races once and retains execution identity and log referenc
   const fixture = new DatabaseFixture();
   try {
     const [queued] = await jobStore.submit(input());
+    fixture.onRun = async (selected) => {
+      const live = await jobStore.runs.inspect(queued!.id);
+      assertEquals(live.state, "running");
+      assert(isId(live.executionId, "job"));
+      assertEquals(selected.executionId, live.executionId);
+    };
     assert(isId(queued!.id, "jhr"));
     assert(isId(queued!.occurrenceId, "occ"));
     assertEquals(fixture.events, ["jobs-ready"]);

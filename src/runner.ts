@@ -1,5 +1,5 @@
 import { context } from "@the8020/context";
-import { kernel } from "@the8020/kernel";
+import { kernel, newId } from "@the8020/kernel";
 import { db, transaction } from "/p/the8020/db/mod.ts";
 import Schedules, { type ScheduleRow } from "../tables/schedules.ts";
 import Cursors from "../tables/cursors.ts";
@@ -162,6 +162,7 @@ async function claim(
     connection.updateTable(Runs.table)
       .set({
         state: "running",
+        executionId: newId("job"),
         nodeId,
         startedAt: now,
         deadlineAt: new Date(now.getTime() + executionTimeoutMs + 30000),
@@ -183,7 +184,7 @@ async function execute(run: RunRow, nodeId: string): Promise<void> {
   const input = run.input as unknown as JobInput;
   let state: "succeeded" | "failed" = "failed",
     failure = "",
-    executionId = "",
+    executionId = run.executionId,
     packageCommit = "";
   let result: unknown = null;
   let sandboxId = "",
@@ -193,6 +194,7 @@ async function execute(run: RunRow, nodeId: string): Promise<void> {
     logPosition = "";
   try {
     const completed = await kernel.programs.run({
+      executionId,
       programId: input.programId,
       arguments: input.arguments,
       username: input.username,

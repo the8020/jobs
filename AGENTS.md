@@ -178,7 +178,9 @@ below.
   the exact owning node. First, recent, and next actions replace that page
   without accumulating history. Expired/unavailable logs leave metadata and
   results visible. Runs without a returned execution identity never issue an
-  unscoped log search; queued/running runs wait for their execution result.
+  unscoped log search; queued runs wait for an execution identity. Running runs
+  already hold their caller-allocated execution ID, permitting exact logs and
+  owning-node Worker heap/CPU inspection before completion.
 - The UUI list prioritizes name, program, status, and next UTC run. Editors keep
   inputs, execution user, and timing visible. Advanced owns searchable node
   selection, sandbox sharing, and month restrictions, with the same draft.

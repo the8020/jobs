@@ -337,6 +337,61 @@ test("manual screen selects execution options and opens captured output", async 
   }
 });
 
+test("running job details display the exact owning Worker's resources", async () => {
+  const { runDetail } = await import("./admin.ts");
+  const previousInspect = jobStore.runs.inspect;
+  const globals = globalThis as unknown as Record<symbol, unknown>;
+  const previousInvoke = globals[kernelInvokeSymbol];
+  const running = {
+    ...run,
+    state: "running" as const,
+    sandboxId: "",
+    workerId: "",
+  };
+  jobStore.runs.inspect = () => Promise.resolve(running);
+  globals[kernelInvokeSymbol] = ((operation, input) => {
+    assertEquals(operation, "runtime.operation");
+    assertEquals(input.operation, "program.inspect");
+    assertEquals(input.input, {
+      executionId: run.executionId,
+      nodeId: run.nodeId,
+    });
+    return Promise.resolve({
+      success: true,
+      result: {
+        node_id: run.nodeId,
+        execution_id: run.executionId,
+        state: "RUNNING",
+        sandbox_id: run.sandboxId,
+        worker_id: run.workerId,
+        resources: {
+          heap_used_bytes: 3 * 1024 * 1024,
+          cpu_usage_micros: 1_250_000,
+          sampled_at: "2026-10-12T10:00:00Z",
+        },
+      },
+    });
+  }) satisfies KernelInvoke;
+  const channel = new Channel();
+  const unbind = bindSession(channel);
+  try {
+    const pending = runDetail(run.id);
+    const screen = await channel.screen(1, "job-run");
+    const model = screen.model as Record<string, unknown>;
+    assertEquals(model.heap, "3.0 MiB");
+    assertEquals(model.cpu, "1.25 s");
+    assertEquals(model.worker, run.workerId);
+    assertEquals(model.sandbox, run.sandboxId);
+    channel.push(screen, BACK_EVENT);
+    await pending;
+  } finally {
+    unbind();
+    jobStore.runs.inspect = previousInspect;
+    if (previousInvoke === undefined) delete globals[kernelInvokeSymbol];
+    else globals[kernelInvokeSymbol] = previousInvoke;
+  }
+});
+
 for (const failing of [false, true]) {
   test(`UUI execution ${failing ? "preserves standard program failures" : "uses positional inputs in the current session"}`, async () => {
     const root = await Deno.makeTempDir({ prefix: "jobs-uui-test-" });

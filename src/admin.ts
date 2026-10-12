@@ -2,12 +2,14 @@ import { listPrograms } from "/p/the8020/packages/programs.ts";
 import { jobInfo, nodeField, runId, scheduleId } from "./fields.ts";
 import { sourceInfo } from "/p/the8020/packages/types/source.ts";
 import { runtimeInfo } from "/p/the8020/admin-core/types/runtime.ts";
+import { resourceModel } from "/p/the8020/admin-core/src/resources.ts";
 import { context } from "@the8020/context";
 import {
   formatLogRecord,
   kernel,
   type LogPage,
   type LogQuery,
+  type ProgramInspection,
 } from "@the8020/kernel";
 import type { JobDefinition, JobRunSummary } from "./types.ts";
 import { jobStore } from "./store.ts";
@@ -552,13 +554,29 @@ export async function runDetail(
         | "inputs"
         | "output"
         | "logs"
-        | "capture",
+        | "capture"
+        | "heap"
+        | "cpu"
+        | "resourceSampledAt",
         string
       > & { state: z.infer<typeof jobInfo.shape.state> }
     >
     | undefined;
   while (true) {
     const run = await jobStore.runs.inspect(id);
+    let live: ProgramInspection | undefined;
+    if (run.state === "running" && run.executionId) {
+      try {
+        live = await kernel.programs.inspect({
+          executionId: run.executionId,
+          nodeId: run.nodeId,
+        });
+      } catch (error) {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          throw error;
+        }
+      }
+    }
     let logPage: LogPage | undefined;
     if (view === "logs" && run.executionId && run.nodeId) {
       try {
@@ -596,6 +614,9 @@ export async function runDetail(
       user: field(jobInfo.shape.runAs, { label: "Run as", readOnly: true }),
       sandbox: field(sandboxField, { readOnly: true }),
       worker: field(workerField, { readOnly: true }),
+      heap: text(runtimeInfo.shape.heap),
+      cpu: text(runtimeInfo.shape.cpu),
+      resourceSampledAt: text(runtimeInfo.shape.resourceSampledAt),
       execution: text(jobInfo.shape.executionId),
       context: text(jobInfo.shape.contextId),
       commit: text(sourceInfo.shape.commit),
@@ -620,14 +641,15 @@ export async function runDetail(
       }),
     });
     const screenModel2Data = {
+      ...resourceModel(live?.resources),
       id: run.id,
       state: run.state,
       program: run.programId,
       user: run.username,
       node: run.nodeId || nodeText(run.targetNode),
       sandboxGroup: run.input.sandboxGroup || "Default",
-      sandbox: run.sandboxId,
-      worker: run.workerId,
+      sandbox: live?.sandbox_id || run.sandboxId,
+      worker: live?.worker_id || run.workerId,
       execution: run.executionId,
       context: run.contextId,
       commit: run.packageCommit,
@@ -681,6 +703,9 @@ export async function runDetail(
           "scheduled",
           "started",
           "finished",
+          ...(run.state === "running"
+            ? ["heap", "cpu", "resourceSampledAt"]
+            : []),
           "failure",
           "output",
           "capture",
@@ -703,6 +728,9 @@ export async function runDetail(
                   "scheduled",
                   "started",
                   "finished",
+                  ...(run.state === "running"
+                    ? ["heap", "cpu", "resourceSampledAt"]
+                    : []),
                   "failure",
                 ],
               },
