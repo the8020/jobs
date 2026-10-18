@@ -1,0 +1,3 @@
+hook = "index-packages"
+description = "Index the selected packages' static job definitions"
+program = "the8020/jobs/index-jobs"

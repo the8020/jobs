@@ -8,7 +8,7 @@ Parent DOX: [jobs DOX](../AGENTS.md).
 # Ownership
 
 - Own manifests and thin entrypoints for `jobs`, `run-program`,
-  `scan-schedules`, and `echo`; `../src/` owns implementation.
+  `scan-schedules`, `index-jobs`, and `echo`; `../src/` owns implementation.
 
 # Local Contracts
 

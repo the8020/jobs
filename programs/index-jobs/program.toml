@@ -1,0 +1,4 @@
+schema = 1
+description = "Index package-defined static jobs"
+entrypoint = "program.ts"
+discoverable = false

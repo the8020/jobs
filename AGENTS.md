@@ -104,6 +104,11 @@ Default section order:
 When the user requests a durable behavior change, record it here or in the
 relevant child AGENTS.md
 
+- Packages may declare static jobs in flat `jobs/*.toml` files. Index them
+  through ordinary package publication, use the same scheduler/claims/history as
+  authored schedules, default to one Any-node run, and offer a separate
+  read-only Static jobs list without configuration or input overrides.
+
 ## Child DOX Index
 
 This root retains repository-wide contracts and files outside the child scopes
@@ -111,6 +116,8 @@ below.
 
 - [events/AGENTS.md](events/AGENTS.md): Declare asynchronous schedule scanning
   and ready-job dispatch triggers.
+- [hooks/AGENTS.md](hooks/AGENTS.md): Index static jobs during package
+  publication.
 - [programs/AGENTS.md](programs/AGENTS.md): Expose Jobs administration,
   interactive execution, scheduling, and the echo fixture.
 - [src/AGENTS.md](src/AGENTS.md): Implement UTC scheduling, durable claims and
@@ -143,6 +150,22 @@ below.
 - `ensure(ownerKey, input)` creates a package maintenance schedule once under a
   unique full `namespace/package/name` key. Concurrent nodes receive the same
   schedule; later calls preserve administrator edits and disabled state.
+- `hooks/index-jobs.toml` registers `index-packages`. Its ordinary program
+  indexes selected ready packages' flat `jobs/*.toml` definitions into the
+  existing schedules table. TOML is authoritative; `sourcePackage` distinguishes
+  static rows and `ownerKey` is the full declaring package/job filename
+  identity. Unchanged definitions preserve revision, initial occurrence, and
+  cursors. Changed or restored definitions advance revision; removed definitions
+  become disabled while history and immutable queued work remain. Invalid job
+  declarations or a changed package commit preserve accepted definitions.
+- Static jobs require full `namespace/package/program` targets, optional
+  positional JSON-compatible `inputs`, and the existing UTC calendar. Defaults
+  are `system`, empty sandbox group, and `node = "any"`; `all` and exact nodes
+  share existing targeting. The README defines the TOML fields and examples.
+- `jobs.list(offset, true)` lists active static definitions separately from
+  authored schedules. Inspection includes `staticKey`; save, ensure, and runNow
+  reject static targets. Static details reuse read-only fields and retain next
+  run, latest result, and normal history/log navigation.
 - Jobs selects a ready program, positional JSON argument array, enabled user,
   sandbox group, and Any (first/default), All, or an exact enabled node. There
   are no scaling controls. Programs use kernel.programs.run and normal job
@@ -251,3 +274,8 @@ below.
 - `browser_e2e.ts` exercises manual/calendar administration against a disposable
   instance. Kernel tests cover generic events, program execution, and lock
   bounds.
+- `static_jobs_native_fixture.ts` uses the UUI native browser harness with
+  `--fixture=../jobs/static_jobs_native_fixture.ts` to verify boot indexing,
+  two-node singleton scheduling, obsolete-session cleanup, read-only details,
+  and ordinary run history. Use a fresh numbered test instance and bound CPU,
+  memory, and runtime as required by the workspace contract.

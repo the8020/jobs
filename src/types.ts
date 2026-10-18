@@ -25,6 +25,7 @@ export interface JobInput {
 
 export interface JobDefinition {
   id: string;
+  staticKey: string | null;
   input: JobInput;
   enabled: boolean;
   revision: number;

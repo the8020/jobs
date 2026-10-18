@@ -19,7 +19,7 @@
     "@the8020/context": "file:///opt/runtime/context/mod.ts"
   },
   "tasks": {
-    "check": "deno fmt --check . && deno lint . && deno check --import-map=deno.local.json mod.ts tables/*.ts src/*.ts programs/*/*.ts browser_e2e.ts",
+    "check": "deno fmt --check . && deno lint . && deno check --import-map=deno.local.json mod.ts tables/*.ts src/*.ts programs/*/*.ts browser_e2e.ts static_jobs_native_fixture.ts",
     "test": "deno test --allow-read --allow-write --import-map=deno.local.json tables/ src/"
   }
 }

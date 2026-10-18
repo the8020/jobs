@@ -57,6 +57,7 @@ Deno.test("form combines explicit appointments with yearly month/date/time recur
     },
   });
   const roundTrip = editorModel("another", {
+    staticKey: null,
     id: "job-1",
     input,
     enabled: true,

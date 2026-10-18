@@ -70,7 +70,7 @@ export async function enabledNodes(): Promise<string[]> {
   return [...new Set(enabled)].sort();
 }
 
-async function validate(
+export async function validateJobInput(
   input: JobInput,
   scheduled: boolean,
 ): Promise<JobInput> {
@@ -120,6 +120,7 @@ export function definition(row: ScheduleRow, now = new Date()): JobDefinition {
   };
   return {
     id: row.id,
+    staticKey: row.sourcePackage ? row.ownerKey : null,
     input,
     enabled: row.enabled,
     revision: row.revision,
@@ -208,7 +209,7 @@ async function submit(
   input: JobInput,
   scheduleId = "",
 ): Promise<JobRunSummary[]> {
-  const selected = await validate(input, false);
+  const selected = await validateJobInput(input, false);
   const targets = selected.node === "all"
     ? (await enabledNodes()).map((id) => "node:" + id)
     : [selected.node];
@@ -229,8 +230,9 @@ export const jobStore = {
     inputSchema.shape.programId.parse(ownerKey);
     const current = await db.selectFrom(Schedules.table).selectAll()
       .where("ownerKey", "=", ownerKey).executeTakeFirst();
+    if (current?.sourcePackage) throw new Error("Static jobs are read-only.");
     if (current) return definition(current);
-    const selected = await validate(input, true), now = new Date();
+    const selected = await validateJobInput(input, true), now = new Date();
     const firstRunAt = nextOccurrence(selected.schedule, now);
     if (!firstRunAt) throw new Error("The schedule has no future occurrence.");
     await db.insertInto(Schedules.table).values({
@@ -252,11 +254,14 @@ export const jobStore = {
     );
   },
   async save(request: SaveJobInput): Promise<JobDefinition> {
+    if (request.id && (await inspect(request.id)).staticKey) {
+      throw new Error("Static jobs are read-only.");
+    }
     if (
       !Number.isSafeInteger(request.revision) || request.revision < 0 ||
       typeof request.enabled !== "boolean"
     ) throw new Error("Invalid schedule revision or enabled state.");
-    const input = await validate(request.input, true), now = new Date();
+    const input = await validateJobInput(request.input, true), now = new Date();
     const nextRunAt = request.enabled
       ? nextOccurrence(input.schedule, now)
       : null;
@@ -277,6 +282,7 @@ export const jobStore = {
         ...values,
         revision: request.revision + 1,
       }).where("id", "=", id).where("revision", "=", request.revision)
+        .where("sourcePackage", "is", null)
         .executeTakeFirst();
       if (updated.numUpdatedRows !== 1n) {
         throw new Error("Schedule changed; refresh before saving.");
@@ -295,11 +301,22 @@ export const jobStore = {
     return inspect(id);
   },
   inspect,
-  async list(offset = 0): Promise<JobPage<JobSummary>> {
-    const rows = await db.selectFrom(Schedules.table).selectAll().orderBy(
-      Schedules.createdAt,
-      "desc",
-    ).orderBy(Schedules.id, "desc").limit(51).offset(offsetOf(offset))
+  async list(offset = 0, staticJobs = false): Promise<JobPage<JobSummary>> {
+    const rows = await db.selectFrom(Schedules.table).selectAll()
+      .$if(
+        staticJobs,
+        (query) =>
+          query.where("sourcePackage", "is not", null).where(
+            "enabled",
+            "=",
+            true,
+          ),
+      )
+      .$if(!staticJobs, (query) => query.where("sourcePackage", "is", null))
+      .orderBy(
+        Schedules.createdAt,
+        "desc",
+      ).orderBy(Schedules.id, "desc").limit(51).offset(offsetOf(offset))
       .execute();
     return page(rows.map((row) => {
       const item = definition(row);
@@ -316,7 +333,9 @@ export const jobStore = {
   },
   submit: (input: JobInput) => submit(input),
   async runNow(id: string): Promise<JobRunSummary[]> {
-    return submit((await inspect(id)).input, id);
+    const job = await inspect(id);
+    if (job.staticKey) throw new Error("Static jobs are read-only.");
+    return submit(job.input, id);
   },
   runs: {
     async list(scheduleId = "", offset = 0): Promise<JobPage<JobRunSummary>> {

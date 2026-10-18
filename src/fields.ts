@@ -27,6 +27,11 @@ export const runId: z.ZodString = field(z.string(), {
 });
 
 export const jobInfo = z.object({
+  staticKey: field(z.string(), {
+    label: "Static job",
+    description:
+      "The package and job filename defining this read-only schedule.",
+  }),
   runAs: field(username, {
     label: "Run as",
     description:

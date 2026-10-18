@@ -541,10 +541,23 @@ test("Jobs list exposes manual, schedule, history, and refresh actions", async (
     assertEquals(screen.header.actions.map((action) => action.id), [
       "run",
       "add",
+      "static",
       "history",
       "refresh",
     ]);
-    channel.push(screen, BACK_EVENT);
+    channel.push(screen, "static");
+    const staticList = await channel.screen(2, "static-jobs-list");
+    assertEquals(staticList.title, "Static jobs");
+    assertEquals(staticList.header.actions.map((action) => action.id), [
+      "history",
+      "refresh",
+    ]);
+    channel.push(staticList, BACK_EVENT);
+    const restored = await channel.screen(
+      channel.screens.length + 2,
+      "jobs-list",
+    );
+    channel.push(restored, BACK_EVENT);
     await pending;
   } finally {
     jobStore.list = originalList;
@@ -552,5 +565,85 @@ test("Jobs list exposes manual, schedule, history, and refresh actions", async (
     delete (globalThis as unknown as Record<symbol, unknown>)[
       kernelInvokeSymbol
     ];
+  }
+});
+
+test("static job details reuse read-only fields and retain execution history navigation", async () => {
+  const { DatabaseFixture } = await import("./test_support.ts");
+  const { buildIndex } = await import("./indexing.ts");
+  const { scan } = await import("./runner.ts");
+  const fixture = new DatabaseFixture();
+  const channel = new Channel(), unbind = bindSession(channel);
+  try {
+    const root = new URL(`file://${fixture.directory}/packages/`);
+    await Deno.mkdir(new URL("acme/app/jobs/", root), { recursive: true });
+    fixture.database.exec(
+      "INSERT INTO the8020__packages__packages (packageId,state,activeCommit) VALUES ('acme/app','ready','first')",
+    );
+    const at = new Date(Date.now() + 5000);
+    await Deno.writeTextFile(
+      new URL("acme/app/jobs/maintenance.toml", root),
+      `
+program = "the8020/jobs/echo"
+[schedule]
+datetimes = ["${at.toISOString()}"]
+[schedule.recurrence]
+times = ["12:00"]
+`,
+    );
+    const state = { packages: { "acme/app": {} } };
+    await buildIndex(state, {
+      packages: [{
+        package_id: "acme/app",
+        package_commit: "first",
+        active: true,
+      }],
+    }, root);
+    assertEquals(state.packages["acme/app"], {});
+    const job = (await jobStore.list(0, true)).items[0]!;
+    await scan(new Date(at.getTime() + 1000));
+    const latest = (await jobStore.runs.list(job.id)).items[0]!;
+    const pending = jobs(job.id);
+    pending.catch(() => {});
+    const screen = await channel.screen(1, "static-job-detail");
+    assertEquals(screen.controls.every((control) => control.readOnly), true);
+    assertEquals(screen.header.actions.map((action) => action.id), [
+      "advanced",
+      "history",
+      "refresh",
+    ]);
+    assertEquals(
+      (screen.model as Record<string, unknown>).source,
+      "acme/app/maintenance",
+    );
+    assertEquals((screen.model as Record<string, unknown>).lastRun, latest.id);
+    assertEquals(
+      (screen.model as Record<string, unknown>).lastState,
+      "succeeded",
+    );
+    channel.push(screen, "advanced");
+    const advanced = await channel.screen(2, "static-job-advanced");
+    assertEquals(advanced.controls.every((control) => control.readOnly), true);
+    channel.push(advanced, BACK_EVENT);
+    const overview = await channel.screen(
+      channel.screens.length + 2,
+      "static-job-detail",
+    );
+    channel.push(overview, "history");
+    const history = await channel.screen(
+      channel.screens.length + 1,
+      "job-runs",
+    );
+    assertEquals(history.lists?.[0]?.rows.length, 1);
+    channel.push(history, BACK_EVENT);
+    const restored = await channel.screen(
+      channel.screens.length + 1,
+      "static-job-detail",
+    );
+    channel.push(restored, BACK_EVENT);
+    await pending;
+  } finally {
+    unbind();
+    fixture.close();
   }
 });

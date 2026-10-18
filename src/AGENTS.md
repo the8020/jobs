@@ -15,6 +15,15 @@ Parent DOX: [jobs DOX](../AGENTS.md).
 
 - Any schedules use deterministic occurrence IDs and short conditional claims;
   All schedules use independent node cursors.
+- `indexing.ts` parses bounded flat TOML, validates through the shared store,
+  and reconciles each selected package in a transaction guarded by its published
+  commit and the existing index-revision lock. No filesystem scanning occurs
+  during minute scheduling. Static jobs use the same schedule rows and runner;
+  source changes alone own their revisions and enabled state.
+- `admin.ts` exposes Static jobs separately and makes every detail field
+  read-only, including Advanced. The store rejects static mutations
+  independently of UI controls. Latest-run links use the normal run detail and
+  log pages.
 - `jobStore.ensure` uses a unique owner key to initialize one shared maintenance
   schedule, with ordinary validation and generated IDs. It never updates an
   existing schedule, including disabled schedules.

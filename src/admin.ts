@@ -73,13 +73,13 @@ function listLayout(
   };
 }
 
-export async function jobs(scheduleId = ""): Promise<void> {
+export async function jobs(scheduleId = "", staticJobs = false): Promise<void> {
   if (scheduleId) return await editJob(true, scheduleId);
   let offset = 0;
   let screenModel: Model<z.infer<typeof screenModelSchema>> | undefined;
   const screenModelSchema = z.object({ schedules: z.array(ScheduleRow) });
   while (true) {
-    const page = await jobStore.list(offset);
+    const page = await jobStore.list(offset, staticJobs);
     const screenModelData = {
       schedules: page.items.map((item) => ({
         id: item.id,
@@ -94,8 +94,8 @@ export async function jobs(scheduleId = ""): Promise<void> {
     screenModel ??= new Model(screenModelData);
     screenModel.data = screenModelData;
     const event = await callScreen({
-      id: "jobs-list",
-      title: "Jobs",
+      id: staticJobs ? "static-jobs-list" : "jobs-list",
+      title: staticJobs ? "Static jobs" : "Jobs",
       schema: screenModelSchema,
       model: screenModel,
       layout: listLayout("jobs-list", "schedules", [
@@ -106,8 +106,13 @@ export async function jobs(scheduleId = ""): Promise<void> {
       ]),
       header: {
         actions: [
-          { id: "run", label: "Run program", kind: "primary" },
-          { id: "add", label: "New schedule" },
+          ...(!staticJobs
+            ? [
+              { id: "run", label: "Run program", kind: "primary" as const },
+              { id: "add", label: "New schedule" },
+              { id: "static", label: "Static jobs" },
+            ]
+            : []),
           { id: "history", label: "Run history" },
           { id: "refresh", label: "[[icon=refresh]] Refresh" },
           ...(offset > 0 ? [{ id: "previous", label: "Previous" }] : []),
@@ -117,8 +122,9 @@ export async function jobs(scheduleId = ""): Promise<void> {
     });
     if (event.action === BACK_EVENT) return;
     try {
-      if (event.action === "run") await runProgram();
-      if (event.action === "add") await editJob(true);
+      if (event.action === "static") await presentPage(() => jobs("", true));
+      if (event.action === "run" && !staticJobs) await runProgram();
+      if (event.action === "add" && !staticJobs) await editJob(true);
       if (event.action === "history") await runHistory();
       if (event.action === "select" && typeof event.value === "string") {
         await editJob(true, event.value);
@@ -158,33 +164,43 @@ function editorSchema(
   options: Choices,
   interactive: boolean,
   advanced = false,
+  readOnly = false,
 ) {
   return z.object({
     name: field(jobInfo.shape.name, {
+      readOnly,
       label: "Name",
       length: "long",
       hidden: interactive,
     }),
     programId: field(programField, {
+      readOnly,
       length: "long",
       reactive: !scheduled,
     }),
     arguments: field(jobInfo.shape.arguments, {
+      readOnly,
       control: "textarea",
       length: "long",
       rowSpan: 3,
     }),
     username: field(jobInfo.shape.runAs, {
+      readOnly,
       label: "Run as",
       hidden: interactive,
     }),
     sandboxGroup: field(jobInfo.shape.sandboxGroup, {
+      readOnly,
       placeholder: "Default",
       hidden: interactive || !advanced,
     }),
-    node: field(nodeField(options.nodes), { hidden: interactive || !advanced }),
-    enabled: field(jobInfo.shape.enabled, { hidden: !scheduled }),
+    node: field(nodeField(options.nodes), {
+      readOnly,
+      hidden: interactive || !advanced,
+    }),
+    enabled: field(jobInfo.shape.enabled, { readOnly, hidden: !scheduled }),
     datetimes: field(jobInfo.shape.datetimes, {
+      readOnly,
       control: "textarea",
       rowSpan: 3,
       length: "long",
@@ -192,10 +208,12 @@ function editorSchema(
       placeholder: "2026-09-15 09:00\n2026-09-16 14:30",
     }),
     recurring: field(jobInfo.shape.recurring, {
+      readOnly,
       reactive: true,
       hidden: !scheduled,
     }),
     startDate: field(jobInfo.shape.startDate, {
+      readOnly,
       control: "date",
       hidden: !scheduled || !model.recurring,
     }),
@@ -207,6 +225,7 @@ function editorSchema(
         ) => [
           `m${i + 1}`,
           field(jobInfo.shape.monthIncluded, {
+            readOnly,
             label,
             length: "short",
             hidden: !scheduled || !model.recurring || !advanced,
@@ -215,6 +234,7 @@ function editorSchema(
       ),
     ),
     dayMode: field(jobInfo.shape.dayMode, {
+      readOnly,
       reactive: true,
       hidden: !scheduled || !model.recurring,
       options: [{ value: "weekdays", label: "Days of week" }, {
@@ -230,6 +250,7 @@ function editorSchema(
         ) => [
           `d${i}`,
           field(jobInfo.shape.weekdayIncluded, {
+            readOnly,
             label,
             length: "short",
             hidden: !scheduled || !model.recurring ||
@@ -239,10 +260,12 @@ function editorSchema(
       ),
     ),
     dates: field(jobInfo.shape.dates, {
+      readOnly,
       hidden: !scheduled || !model.recurring || model.dayMode !== "dates",
       placeholder: "1, 15, 31",
     }),
     times: field(jobInfo.shape.times, {
+      readOnly,
       length: "long",
       hidden: !scheduled || !model.recurring,
       placeholder: "09:00, 14:30",
@@ -311,6 +334,76 @@ export function runProgram(
   return editJob(false, undefined, programId, packagesRoot);
 }
 
+async function staticJob(id: string, advanced = false): Promise<void> {
+  while (true) {
+    const job = await jobStore.inspect(id);
+    const latest = (await jobStore.runs.list(id)).items[0];
+    const model = editorModel(context.username, job);
+    const schema = editorSchema(
+      model,
+      true,
+      await choices(),
+      false,
+      advanced,
+      true,
+    ).extend({
+      source: field(jobInfo.shape.staticKey, { readOnly: true }),
+      nextRun: field(jobInfo.shape.nextRun, { readOnly: true }),
+      lastRun: field(runId, { label: "Last run", readOnly: true }),
+      lastState: field(jobInfo.shape.state.nullable(), {
+        label: "Last result",
+        readOnly: true,
+      }),
+      lastFinished: field(jobInfo.shape.finished, { readOnly: true }),
+    });
+    const layout = editorLayout(model, true, false);
+    layout.root.children!.unshift({
+      id: "static-status",
+      type: "field-group",
+      title: "Schedule",
+      controls: ["source", "nextRun", "lastRun", "lastState", "lastFinished"],
+    });
+    if (advanced) {
+      layout.root.children!.push({
+        id: "static-placement",
+        type: "field-group",
+        title: "Where to run",
+        controls: [
+          "node",
+          "sandboxGroup",
+          ...months.map((_, i) => `months.m${i + 1}`),
+        ],
+      });
+    }
+    const event = await callScreen({
+      id: advanced ? "static-job-advanced" : "static-job-detail",
+      title: job.input.name,
+      schema,
+      model: new Model({
+        ...model,
+        source: job.staticKey ?? "",
+        nextRun: dateText(job.nextRunAt),
+        lastRun: latest?.id ?? "",
+        lastState: latest?.state ?? null,
+        lastFinished: dateText(latest?.finishedAt ?? null),
+      }),
+      layout,
+      header: {
+        actions: [
+          ...(!advanced ? [{ id: "advanced", label: "Advanced" }] : []),
+          { id: "history", label: "Run history" },
+          { id: "refresh", label: "[[icon=refresh]] Refresh" },
+        ],
+      },
+    });
+    if (event.action === BACK_EVENT) return;
+    if (event.action === "advanced") {
+      await presentPage(() => staticJob(id, true));
+    }
+    if (event.action === "history") await runHistory(id);
+  }
+}
+
 export async function editJob(
   scheduled: boolean,
   id?: string,
@@ -320,6 +413,7 @@ export async function editJob(
   let definition: JobDefinition | undefined = id
     ? await jobStore.inspect(id)
     : undefined;
+  if (definition?.staticKey) return await staticJob(definition.id);
   let model = editorModel(context.username, definition);
   const screenModel = new Model(model);
   let options = await choices();

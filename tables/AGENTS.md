@@ -17,6 +17,10 @@ Parent DOX: [jobs DOX](../AGENTS.md).
   identities, immutable queued inputs, and bounded run-result storage.
 - Nullable, unique schedule `ownerKey` supports idempotent package maintenance
   initialization; ordinary user-authored schedules leave it null.
+- Nullable `sourcePackage` marks file-owned schedules. Their `ownerKey` is the
+  full package/job filename identity, and enabled means the declaration is
+  present in the accepted index. Removed definitions retain their row and
+  history with enabled false. Reappearance reuses the ID with a new revision.
 - Schedule/run program and username columns reuse the semantic package/user
   fields through `t.from`; sandbox/Worker references reuse admin-core fields.
   SQL types and table-local keys remain unchanged.

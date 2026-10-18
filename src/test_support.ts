@@ -16,6 +16,8 @@ const tables = await Promise.all([
   import("../tables/schedules.ts"),
   import("../tables/runs.ts"),
   import("../tables/cursors.ts"),
+  import("/p/the8020/packages/tables/packages.ts"),
+  import("/p/the8020/system/tables/revisions.ts"),
 ]);
 
 export class DatabaseFixture {

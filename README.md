@@ -38,6 +38,62 @@ node's cursor, and launches programs through `kernel.programs.run`. Any uses a
 short conditional database claim; All uses independent per-node records.
 Calendar logic and history writes live entirely in this package.
 
+## Static jobs
+
+Packages can ship read-only schedules in a flat `jobs/` directory. For example,
+`jobs/maintenance.toml`:
+
+```toml
+name = "Maintenance"
+program = "acme/example/maintain"
+inputs = [{ batch_size = 100 }]
+node = "any"
+
+[schedule.recurrence]
+times = ["00:00", "12:00"]
+```
+
+`program` must be a full `namespace/package/program` ID, including for a program
+in the declaring package. `inputs` is an optional array of positional
+JSON-compatible values, defaulting to `[]`. Optional `name` defaults to the
+filename without `.toml`; `username` defaults to `system`, `sandbox_group` to
+empty, and `node` to `any`. Use `all` for an independent run on every enabled
+node, or `node:<id>` for an exact enabled node.
+
+Static calendars have the same UTC semantics as editable schedules:
+
+```toml
+[schedule]
+datetimes = ["2027-01-15T09:00:00Z", "2027-02-01T14:30:00Z"]
+
+[schedule.recurrence]
+start_date = "2027-01-01"
+months = [1, 4, 7, 10]
+day_mode = "dates"
+dates = [1, 15]
+times = ["09:00"]
+```
+
+Use either specific datetimes, recurrence, or both. Quote date/time values.
+Recurrence defaults to start date `1970-01-01`, all months, and every weekday.
+For weekly schedules set `weekdays = [1, 3, 5]` (`0` is Sunday); for month dates
+set `day_mode = "dates"` and `dates`. `times` is required for recurrence. Hourly
+schedules list `00:00` through `23:00`.
+
+Normal startup, activation, source publication, and `kernel.reindex` invoke the
+jobs package's `index-packages` hook. The scheduler reads its indexed rows
+alongside editable schedules and uses the same cursors, singleton claims,
+execution path, and history. Reindexing unchanged files does not replay runs.
+Editing a definition starts a new schedule revision; removing a file or package
+stops future scheduling while preserving queued work and history. A definition
+with no future occurrence remains inspectable without creating a run.
+
+Open **Jobs → Static jobs** for the separate read-only list, inputs, calendar,
+next run, latest result, and run history. Static definitions have no UI/API
+overrides or Run now action. Change and publish the TOML instead. The existing
+`jobs.ensure()` API remains for initial schedules that administrators may edit;
+its owner key cannot collide with a static definition.
+
 Manual submission emits `jobs-ready` locally for prompt execution. Other nodes
 pick up their queued work on the next minute event. Specific datetimes between
 minute boundaries become eligible on the next tick. Host clocks must be kept
@@ -47,9 +103,9 @@ installations use shared PostgreSQL and the same activated packages.
 After downtime, recurring work coalesces into one overdue occurrence per cursor,
 while explicit appointments drain through bounded batches. Interrupted runs are
 recorded without automatic replay. Each run allows five minutes including Worker
-admission. Results and logs each retain up to 256 KiB; logs also retain at most
-512 entries. Generic events are memory-only; the package database owns
-durability.
+admission. Results retain up to 256 KiB; history retains execution references
+for bounded reads from unified logging. Generic events are memory-only; the
+package database owns durability.
 
 Other Deno programs can use:
 
