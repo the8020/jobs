@@ -10,6 +10,7 @@ import { programId } from "/p/the8020/packages/types/program.ts";
 
 const Schedules = table("the8020__jobs__schedules", {
   id: t.from(scheduleId).primaryKey(),
+  ownerKey: t.text().nullable(),
   name: t.from(jobInfo.shape.name),
   programId: t.from(programId),
   arguments: t.json(),
@@ -24,6 +25,7 @@ const Schedules = table("the8020__jobs__schedules", {
   updatedAt: t.datetime().defaultNow(),
 }, {
   indexes: [
+    { columns: ["ownerKey"], unique: true },
     { columns: ["enabled", "node", "firstRunAt", "id"] },
     { columns: ["createdAt", "id"] },
   ],

@@ -137,8 +137,12 @@ below.
 
 # Local Contracts
 
-- `/p/the8020/jobs/mod.ts` exports `jobs` with list/inspect/save, submit/runNow,
-  and runs.list/inspect. Package types describe UTC calendars and history.
+- `/p/the8020/jobs/mod.ts` exports `jobs` with list/inspect/save/ensure,
+  submit/runNow, and runs.list/inspect. Package types describe UTC calendars and
+  history.
+- `ensure(ownerKey, input)` creates a package maintenance schedule once under a
+  unique full `namespace/package/name` key. Concurrent nodes receive the same
+  schedule; later calls preserve administrator edits and disabled state.
 - Jobs selects a ready program, positional JSON argument array, enabled user,
   sandbox group, and Any (first/default), All, or an exact enabled node. There
   are no scaling controls. Programs use kernel.programs.run and normal job

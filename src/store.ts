@@ -225,6 +225,32 @@ async function submit(
 }
 
 export const jobStore = {
+  async ensure(ownerKey: string, input: JobInput): Promise<JobDefinition> {
+    inputSchema.shape.programId.parse(ownerKey);
+    const current = await db.selectFrom(Schedules.table).selectAll()
+      .where("ownerKey", "=", ownerKey).executeTakeFirst();
+    if (current) return definition(current);
+    const selected = await validate(input, true), now = new Date();
+    const firstRunAt = nextOccurrence(selected.schedule, now);
+    if (!firstRunAt) throw new Error("The schedule has no future occurrence.");
+    await db.insertInto(Schedules.table).values({
+      ...selected,
+      id: newId("sch"),
+      ownerKey,
+      arguments: json(selected.arguments),
+      schedule: json(selected.schedule),
+      enabled: true,
+      revision: 1,
+      firstRunAt,
+      createdAt: now,
+      updatedAt: now,
+    }).onConflict((conflict) => conflict.column("ownerKey").doNothing())
+      .execute();
+    return definition(
+      await db.selectFrom(Schedules.table).selectAll()
+        .where("ownerKey", "=", ownerKey).executeTakeFirstOrThrow(),
+    );
+  },
   async save(request: SaveJobInput): Promise<JobDefinition> {
     if (
       !Number.isSafeInteger(request.revision) || request.revision < 0 ||

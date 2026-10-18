@@ -15,6 +15,9 @@ Parent DOX: [jobs DOX](../AGENTS.md).
 
 - Any schedules use deterministic occurrence IDs and short conditional claims;
   All schedules use independent node cursors.
+- `jobStore.ensure` uses a unique owner key to initialize one shared maintenance
+  schedule, with ordinary validation and generated IDs. It never updates an
+  existing schedule, including disabled schedules.
 - Create `sch-*` schedule, `jhr-*` history, and manual `occ-*` occurrence IDs
   with the kernel SDK helper. Their database owners reject initial collisions;
   structured scheduled occurrence/cursor keys retain cross-node deduplication.
