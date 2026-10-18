@@ -65,11 +65,12 @@ function listLayout(
   id: string,
   bind: string,
   display: string[],
+  toolbar: LayoutDocument["root"]["toolbar"] = [],
 ): LayoutDocument {
   return {
     schema: 1,
     id,
-    root: { id, type: "list", bind, key: "id", display },
+    root: { id, type: "list", bind, key: "id", display, toolbar },
   };
 }
 
@@ -103,20 +104,23 @@ export async function jobs(scheduleId = "", staticJobs = false): Promise<void> {
         "program",
         "status",
         "nextRun",
+      ], [
+        ...(!staticJobs
+          ? [{ id: "add", label: "New schedule", kind: "primary" as const }]
+          : []),
+        { id: "refresh", label: "[[icon=refresh]] Refresh" },
+        ...(offset > 0 ? [{ id: "previous", label: "Previous" }] : []),
+        ...(page.hasMore ? [{ id: "next", label: "Next" }] : []),
       ]),
       header: {
         actions: [
           ...(!staticJobs
             ? [
               { id: "run", label: "Run program", kind: "primary" as const },
-              { id: "add", label: "New schedule" },
               { id: "static", label: "Static jobs" },
             ]
             : []),
           { id: "history", label: "Run history" },
-          { id: "refresh", label: "[[icon=refresh]] Refresh" },
-          ...(offset > 0 ? [{ id: "previous", label: "Previous" }] : []),
-          ...(page.hasMore ? [{ id: "next", label: "Next" }] : []),
         ],
       },
     });
@@ -593,14 +597,11 @@ export async function runHistory(scheduleId = ""): Promise<void> {
         "state",
         "scheduled",
         "finished",
+      ], [
+        { id: "refresh", label: "[[icon=refresh]] Refresh" },
+        ...(offset > 0 ? [{ id: "previous", label: "Previous" }] : []),
+        ...(page.hasMore ? [{ id: "next", label: "Next" }] : []),
       ]),
-      header: {
-        actions: [
-          { id: "refresh", label: "[[icon=refresh]] Refresh" },
-          ...(offset > 0 ? [{ id: "previous", label: "Previous" }] : []),
-          ...(page.hasMore ? [{ id: "next", label: "Next" }] : []),
-        ],
-      },
     });
     if (event.action === BACK_EVENT) return;
     if (event.action === "select" && typeof event.value === "string") {

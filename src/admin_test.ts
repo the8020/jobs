@@ -540,9 +540,11 @@ test("Jobs list exposes manual, schedule, history, and refresh actions", async (
     const screen = await channel.screen(1);
     assertEquals(screen.header.actions.map((action) => action.id), [
       "run",
-      "add",
       "static",
       "history",
+    ]);
+    assertEquals(screen.lists[0]!.toolbar?.map((item) => item.id), [
+      "add",
       "refresh",
     ]);
     channel.push(screen, "static");
@@ -550,6 +552,8 @@ test("Jobs list exposes manual, schedule, history, and refresh actions", async (
     assertEquals(staticList.title, "Static jobs");
     assertEquals(staticList.header.actions.map((action) => action.id), [
       "history",
+    ]);
+    assertEquals(staticList.lists[0]!.toolbar?.map((item) => item.id), [
       "refresh",
     ]);
     channel.push(staticList, BACK_EVENT);

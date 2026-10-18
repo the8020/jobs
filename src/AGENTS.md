@@ -13,6 +13,10 @@ Parent DOX: [jobs DOX](../AGENTS.md).
 
 # Local Contracts
 
+- New schedule, list refresh, and backend history paging belong in their list
+  toolbars. Run program, Static jobs, and Run history navigation stay in the
+  page header.
+
 - Any schedules use deterministic occurrence IDs and short conditional claims;
   All schedules use independent node cursors.
 - `indexing.ts` parses bounded flat TOML, validates through the shared store,
