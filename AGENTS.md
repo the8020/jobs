@@ -137,8 +137,12 @@ below.
 
 # Local Contracts
 
-- `/p/the8020/jobs/mod.ts` exports `jobs` with list/inspect/save, submit/runNow,
-  and runs.list/inspect. Package types describe UTC calendars and history.
+- `/p/the8020/jobs/mod.ts` exports `jobs` with list/inspect/save/ensure,
+  submit/runNow, and runs.list/inspect. Package types describe UTC calendars and
+  history.
+- `ensure(ownerKey, input)` creates a package maintenance schedule once under a
+  unique full `namespace/package/name` key. Concurrent nodes receive the same
+  schedule; later calls preserve administrator edits and disabled state.
 - Jobs selects a ready program, positional JSON argument array, enabled user,
   sandbox group, and Any (first/default), All, or an exact enabled node. There
   are no scaling controls. Programs use kernel.programs.run and normal job
@@ -225,6 +229,15 @@ below.
 
 - Keep forms simple and label UTC explicitly. Keep implementation details here.
 - Change shared database transport/codec/lock behavior in its owning layer.
+
+## UI Rules
+
+- Do not add explanatory helper copy that restates what the control already
+  implies (e.g. "optional", "works without selection", "failure falls back to
+  X"). Prefer clear labels and option text; surface status in results when
+  needed, not as instructional paragraphs under every field.
+- Keep UI copy concise. Avoid tutorial-style descriptions unless the user
+  explicitly asks for onboarding help.
 
 # Verification
 

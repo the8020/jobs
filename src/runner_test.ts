@@ -15,6 +15,33 @@ const input = (node = "any"): JobInput => ({
 });
 const later = (ms = 5000) => new Date(Date.now() + ms).toISOString();
 
+Deno.test("package schedule initialization converges and preserves administrator edits", async () => {
+  const fixture = new DatabaseFixture();
+  try {
+    const selected = {
+      ...input(),
+      schedule: { datetimes: [later()], recurrence: null },
+    };
+    const key = "the8020/https/maintenance";
+    const [first, second] = await Promise.all([
+      fixture.as("node-a", () => jobStore.ensure(key, selected)),
+      fixture.as("node-b", () => jobStore.ensure(key, selected)),
+    ]);
+    assertEquals(first.id, second.id);
+    assert(isId(first.id, "sch"));
+    assertEquals((await jobStore.list()).items.length, 1);
+    const edited = await jobStore.save({
+      ...first,
+      enabled: false,
+      input: { ...first.input, name: "Paused by administrator" },
+    });
+    assertEquals(await jobStore.ensure(key, selected), edited);
+    await assertRejects(() => jobStore.ensure("invalid", selected));
+  } finally {
+    fixture.close();
+  }
+});
+
 Deno.test("manual Any races once and retains execution identity and log references", async () => {
   const fixture = new DatabaseFixture();
   try {
