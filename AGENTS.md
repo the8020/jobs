@@ -132,6 +132,8 @@ below.
 
 # Ownership
 
+- `widgets/` declares this package's Home tiles and categories through the
+  `the8020/packages/widgets.ts` format.
 - Own authored schedules, per-node cursors, and run-history tables, calendar
   calculation, validation, optimistic edits, node claims, and result capture.
 - `events/scan-schedules.toml` and `events/run-ready-jobs.toml` declare

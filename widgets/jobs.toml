@@ -1,0 +1,9 @@
+schema = 1
+title = "Jobs"
+description = "Review and run jobs"
+icon = "schedule"
+category = "operations"
+order = 20
+
+[open]
+program = "the8020/jobs/jobs"
