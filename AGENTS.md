@@ -217,8 +217,8 @@ below.
   open the owning schedule through the public Jobs entrypoint.
 - The UUI list links editable details and run history; header actions use the
   shell-owned BACK_EVENT. Screens use the shared UUI Model contract, retaining
-  the editor's model across reactive roundtrips. Local checks resolve sibling
-  source through deno.local.json.
+  the editor's model across reactive roundtrips. Local checks use the shared
+  80|20 Deno workspace for platform imports.
 - Jobs and the hidden `run-program` entrypoint declare `uui = true`. The latter
   accepts an optional program ID and opens the existing manual form with that
   program selected. Manual UUI selections collect positional JSON inputs and use
