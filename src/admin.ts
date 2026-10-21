@@ -12,7 +12,7 @@ import {
   type ProgramInspection,
 } from "@the8020/kernel";
 import type { JobDefinition, JobRunSummary } from "./types.ts";
-import { jobStore } from "./store.ts";
+import { guardedJobs as jobStore } from "./guard.ts";
 import {
   BACK_EVENT,
   callScreen,

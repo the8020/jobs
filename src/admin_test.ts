@@ -25,6 +25,18 @@ import { installContextProvider } from "../../kernel/defaults/config/runtime/den
 const { editJob, jobs, runProgram } = await import("./admin.ts");
 const { jobStore } = await import("./store.ts");
 
+// Screens run as system, which bypasses permissions; guard_test covers checks.
+installContextProvider(() => ({
+  authenticated: true,
+  type: "program",
+  id: "the8020/jobs/test",
+  username: "system",
+  userId: "user:system",
+  nodeId: "node-a",
+  sandboxId: "sbx-test",
+  workerId: "wrk-test",
+  contextId: "ctx-0123456789",
+}));
 // Each fixture starts outside the presentation contexts of earlier sessions.
 const rootContext = AsyncLocalStorage.snapshot();
 function test(name: string, run: () => Promise<void>) {
@@ -216,8 +228,9 @@ test("manual screen selects execution options and opens captured output", async 
     authenticated: true,
     type: "program",
     id: "the8020/jobs/jobs",
-    username: "robot",
-    userId: "user:robot",
+    // System bypasses permissions; guard.ts tests cover enforcement.
+    username: "system",
+    userId: "user:system",
     nodeId: "node-a",
 
     sandboxId: "sbx-test",
@@ -444,8 +457,8 @@ for (const failing of [false, true]) {
       authenticated: true,
       type: "service",
       id: "the8020/uui/session",
-      username: "robot",
-      userId: "user:robot",
+      username: "system",
+      userId: "user:system",
       nodeId: "node-a",
 
       sandboxId: "sbx-test",

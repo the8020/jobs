@@ -7,3 +7,6 @@ order = 20
 
 [open]
 program = "the8020/jobs/jobs"
+
+[visible]
+permission = "the8020.jobs.job.view"

@@ -1,0 +1,3 @@
+"the8020.jobs.job.view" = "View jobs and their runs and logs; value is the job's program ID (namespace/package/program)."
+"the8020.jobs.job.edit" = "Create or change a scheduled job; value is the job's program ID."
+"the8020.jobs.job.run" = "Run a program as a job now, including Run now on a schedule; value is the program ID."

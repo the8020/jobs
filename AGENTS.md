@@ -133,7 +133,8 @@ below.
 # Ownership
 
 - `widgets/` declares this package's Home tiles and categories through the
-  `the8020/packages/widgets.ts` format.
+  `the8020/packages/widgets.ts` format; the tile is visible with
+  `the8020.jobs.job.view`.
 - Own authored schedules, per-node cursors, and run-history tables, calendar
   calculation, validation, optimistic edits, node claims, and result capture.
 - `events/scan-schedules.toml` and `events/run-ready-jobs.toml` declare
@@ -146,6 +147,12 @@ below.
 
 # Local Contracts
 
+- The Jobs screens and `run-program` use `src/guard.ts`, which checks
+  `the8020.jobs.job.view` (lists filtered through auth's unaudited `filter`,
+  details and runs), `the8020.jobs.job.edit` (save) and `the8020.jobs.job.run`
+  (submit and Run now); the value is the job's program ID. `mod.ts`'s `jobs`
+  store stays the trusted API for packages that schedule their own work under
+  their own permissions.
 - `/p/the8020/jobs/mod.ts` exports `jobs` with list/inspect/save/ensure,
   submit/runNow, and runs.list/inspect. Package types describe UTC calendars and
   history.
