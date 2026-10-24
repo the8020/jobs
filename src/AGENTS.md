@@ -87,6 +87,9 @@ Parent DOX: [jobs DOX](../AGENTS.md).
 
 # Verification
 
+- UI tests install one execution-context provider per fixture and remove it at
+  teardown; database fixtures select their principal without replacing an active
+  provider. Production context immutability remains unchanged.
 - From the repository root, run `deno task check` and `deno task test`.
 
 # Child DOX Index

@@ -1,6 +1,6 @@
 import type { JobRun } from "./types.ts";
 import { AsyncLocalStorage } from "node:async_hooks";
-import { assertEquals, assertRejects } from "@std/assert";
+import { assertEquals, assertRejects, assertThrows } from "@std/assert";
 import {
   formatLogRecord,
   kernelDatabaseBackendSymbol,
@@ -17,7 +17,10 @@ import {
   type UUIClientMessage,
 } from "/p/the8020/uui/mod.ts";
 import { bindSession } from "../../uui/session.ts";
-import { installContextProvider } from "../../kernel/defaults/config/runtime/deno/context/runtime.ts";
+import {
+  currentExecutionContext,
+  installContextProvider,
+} from "../../kernel/defaults/config/runtime/deno/context/runtime.ts";
 
 (globalThis as unknown as Record<symbol, unknown>)[
   kernelDatabaseBackendSymbol
@@ -26,21 +29,31 @@ const { editJob, jobs, runProgram } = await import("./admin.ts");
 const { jobStore } = await import("./store.ts");
 
 // Screens run as system, which bypasses permissions; guard_test covers checks.
-installContextProvider(() => ({
-  authenticated: true,
-  type: "program",
-  id: "the8020/jobs/test",
-  username: "system",
-  userId: "user:system",
-  nodeId: "node-a",
-  sandboxId: "sbx-test",
-  workerId: "wrk-test",
-  contextId: "ctx-0123456789",
-}));
+function installSystemContext() {
+  return installContextProvider(() => ({
+    authenticated: true,
+    type: "program",
+    id: "the8020/jobs/test",
+    username: "system",
+    userId: "user:system",
+    nodeId: "node-a",
+    sandboxId: "sbx-test",
+    workerId: "wrk-test",
+    contextId: "ctx-0123456789",
+  }));
+}
 // Each fixture starts outside the presentation contexts of earlier sessions.
 const rootContext = AsyncLocalStorage.snapshot();
 function test(name: string, run: () => Promise<void>) {
-  Deno.test(name, () => rootContext(run));
+  Deno.test(name, () =>
+    rootContext(async () => {
+      await run();
+      assertThrows(
+        currentExecutionContext,
+        Error,
+        "only available inside an invocation",
+      );
+    }));
 }
 
 class Channel {
@@ -224,30 +237,20 @@ test("manual screen selects execution options and opens captured output", async 
       if (!(name in values)) throw new Error(name);
       return Promise.resolve({ success: true, result: values[name] });
     }) satisfies KernelInvoke;
-  const removeContext = installContextProvider(() => ({
-    authenticated: true,
-    type: "program",
-    id: "the8020/jobs/jobs",
-    // System bypasses permissions; guard.ts tests cover enforcement.
-    username: "system",
-    userId: "user:system",
-    nodeId: "node-a",
-
-    sandboxId: "sbx-test",
-    workerId: "wrk-test",
-    contextId: "ctx-0123456789",
-  }));
+  const removeContext = installSystemContext();
   const channel = new Channel(), unbind = bindSession(channel);
   try {
     const pending = editJob(false);
     pending.catch(() => {});
     const screen = await channel.screen(1);
     assertEquals((screen.model as Record<string, unknown>).node, "any");
+    assertEquals((screen.model as Record<string, unknown>).username, "system");
     const node = screen.controls.find((control) => control.bind === "node")!;
     assertEquals(node.hidden, true);
     assertEquals(node.options, undefined);
     channel.push(screen, "advanced", [
       { bind: "name", value: "Example" },
+      { bind: "username", value: "robot" },
       { bind: "programId", value: "the8020/jobs/echo" },
       { bind: "arguments", value: '[{"value":42}]' },
     ]);
@@ -385,6 +388,7 @@ test("running job details display the exact owning Worker's resources", async ()
       },
     });
   }) satisfies KernelInvoke;
+  const removeContext = installSystemContext();
   const channel = new Channel();
   const unbind = bindSession(channel);
   try {
@@ -399,6 +403,7 @@ test("running job details display the exact owning Worker's resources", async ()
     await pending;
   } finally {
     unbind();
+    removeContext();
     jobStore.runs.inspect = previousInspect;
     if (previousInvoke === undefined) delete globals[kernelInvokeSymbol];
     else globals[kernelInvokeSymbol] = previousInvoke;
@@ -547,6 +552,7 @@ test("Jobs list exposes manual, schedule, history, and refresh actions", async (
         success: true,
         result: { items: [], hasMore: false },
       })) satisfies KernelInvoke;
+  const removeContext = installSystemContext();
   const channel = new Channel(), unbind = bindSession(channel);
   try {
     const pending = jobs();
@@ -579,6 +585,7 @@ test("Jobs list exposes manual, schedule, history, and refresh actions", async (
   } finally {
     jobStore.list = originalList;
     unbind();
+    removeContext();
     delete (globalThis as unknown as Record<symbol, unknown>)[
       kernelInvokeSymbol
     ];
@@ -589,7 +596,7 @@ test("static job details reuse read-only fields and retain execution history nav
   const { DatabaseFixture } = await import("./test_support.ts");
   const { buildIndex } = await import("./indexing.ts");
   const { scan } = await import("./runner.ts");
-  const fixture = new DatabaseFixture();
+  const fixture = new DatabaseFixture("system");
   const channel = new Channel(), unbind = bindSession(channel);
   try {
     const root = new URL(`file://${fixture.directory}/packages/`);

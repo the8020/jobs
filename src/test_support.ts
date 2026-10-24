@@ -37,7 +37,7 @@ export class DatabaseFixture {
   readonly restore: () => void;
   onRun?: (input: ProgramRunInput) => Promise<void>;
   fail = false;
-  constructor() {
+  constructor(username = "robot") {
     this.database.exec("PRAGMA journal_mode=WAL");
     for (const module of tables) {
       const table = descriptorOf(module.default);
@@ -68,8 +68,8 @@ export class DatabaseFixture {
       authenticated: true,
       type: "program",
       id: "the8020/jobs/test",
-      username: "robot",
-      userId: "user:robot",
+      username,
+      userId: `user:${username}`,
       nodeId: this.scope.getStore() ?? "node-a",
 
       sandboxId: "sandbox",
