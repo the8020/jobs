@@ -17,6 +17,6 @@
   "tasks": {
     "check": "deno fmt --check . && deno lint . && deno check mod.ts tables/*.ts src/*.ts programs/*/*.ts browser_e2e.ts static_jobs_native_fixture.ts && deno task check:i18n",
     "test": "deno test --allow-read --allow-write tables/ src/",
-    "check:i18n": "deno run --allow-read ../i18n/check.ts --complete=cs ."
+    "check:i18n": "deno run --allow-read ../i18n/check.ts --complete=builtin ."
   }
 }

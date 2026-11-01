@@ -26,7 +26,7 @@
     "admin.months_to_include": "Zahrnuté měsíce",
     "admin.done": "Hotovo",
     "admin.schedule_saved": "Plán uložen.",
-    "admin.value1_value2_queued": "{value1} {value2} zařazeno do fronty.",
+    "admin.runs_queued": "Spuštění ve frontě: {count}",
     "admin.result": "Výsledek",
     "admin.logs": "Logy",
     "admin.inputs": "Vstupy",

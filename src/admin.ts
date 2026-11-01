@@ -587,9 +587,8 @@ export async function editJob(
 async function openSubmitted(runs: JobRunSummary[], scheduleId = "") {
   sendMessage(
     localizedText(
-      msg("admin.value1_value2_queued", {
-        value1: runs.length,
-        value2: runs.length === 1 ? "run" : "runs",
+      msg("admin.runs_queued", {
+        count: runs.length,
       }),
     ),
     "success",

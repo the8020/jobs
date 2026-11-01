@@ -26,7 +26,7 @@
     "admin.months_to_include": "Months to include",
     "admin.done": "Done",
     "admin.schedule_saved": "Schedule saved.",
-    "admin.value1_value2_queued": "{value1} {value2} queued.",
+    "admin.runs_queued": "Queued runs: {count}",
     "admin.result": "Result",
     "admin.logs": "Logs",
     "admin.inputs": "Inputs",
