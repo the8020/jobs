@@ -1,3 +1,4 @@
+import { resolveTexts } from "/p/the8020/i18n/mod.ts";
 import { fieldMetadata } from "/p/the8020/db/fields.ts";
 import { jobInfo, nodeField } from "./fields.ts";
 import { assert, assertEquals, assertThrows } from "@std/assert";
@@ -9,7 +10,7 @@ Deno.test("new jobs default to Any and every month and weekday", () => {
   assertEquals(model.username, "robot");
   assertEquals(Object.values(model.months), Array(12).fill(true));
   assertEquals(Object.values(model.weekdays), Array(7).fill(true));
-  assertEquals(nodeOptions(["node-b", "node-a", "node-a"]), [
+  assertEquals(resolveTexts(nodeOptions(["node-b", "node-a", "node-a"])), [
     { value: "any", label: "Any" },
     { value: "all", label: "All" },
     { value: "node:node-a", label: "node-a" },

@@ -1,3 +1,4 @@
+import { msg } from "/p/the8020/jobs/i18n/messages.ts";
 import { runtimeInfo } from "/p/the8020/admin-core/types/runtime.ts";
 import { username } from "/p/the8020/users/types/user.ts";
 import {
@@ -8,18 +9,16 @@ import {
 } from "/p/the8020/db/fields.ts";
 
 export const scheduleId: z.ZodString = field(z.string(), {
-  label: "Schedule",
-  description:
-    "The saved schedule that created this run. Open it to review its inputs and timing.",
+  label: msg("admin.schedule"),
+  description: msg("fields.the_saved_schedule_that_created_this_run"),
   open: async (value) => {
     const { default: jobs } = await import("../programs/jobs/program.ts");
     await jobs(value);
   },
 });
 export const runId: z.ZodString = field(z.string(), {
-  label: "Run ID",
-  description:
-    "The saved history record for one job run, distinct from its kernel execution ID.",
+  label: msg("fields.run_id"),
+  description: msg("fields.the_saved_history_record_for_one_job"),
   open: async (value) => {
     const { runDetail } = await import("./admin.ts");
     await runDetail(value);
@@ -28,135 +27,115 @@ export const runId: z.ZodString = field(z.string(), {
 
 export const jobInfo = z.object({
   staticKey: field(z.string(), {
-    label: "Static job",
-    description:
-      "The package and job filename defining this read-only schedule.",
+    label: msg("fields.static_job"),
+    description: msg("fields.the_package_and_job_filename_defining_this"),
   }),
   runAs: field(username, {
-    label: "Run as",
-    description:
-      "Choose an enabled account to run this job. Interactive programs use the currently signed-in user instead.",
+    label: msg("admin.run_as"),
+    description: msg("fields.choose_an_enabled_account_to_run_this"),
   }),
   name: field(z.string(), {
-    label: "Job",
-    description:
-      "A name that helps you recognize this job in schedules and run history.",
+    label: msg("fields.job"),
+    description: msg("fields.a_name_that_helps_you_recognize_this"),
   }),
   scheduleStatus: field(z.string(), {
-    label: "Status",
-    description:
-      "Scheduled jobs can run at their next matching time. Paused jobs do not start new scheduled runs.",
-    valueHelp: choiceHelp(z.string(), ["Scheduled", "Paused"]),
+    label: msg("fields.status"),
+    description: msg("fields.scheduled_jobs_can_run_at_their_next"),
+    valueHelp: choiceHelp(z.string(), [
+      msg("admin.scheduled"),
+      msg("admin.paused"),
+    ]),
   }),
   state: field(
     z.enum(["queued", "running", "succeeded", "failed", "interrupted"]),
     {
-      label: "Status",
-      description:
-        "The outcome of this run. Interrupted means its completion is unknown; it is not automatically replayed.",
+      label: msg("fields.status"),
+      description: msg("fields.the_outcome_of_this_run_interrupted_means"),
     },
   ),
   node: field(z.string(), {
-    label: "Node",
-    description:
-      "**Any** runs once on an available node. **All** runs once on each enabled node. Select an exact node when work must run there.",
+    label: msg("fields.node"),
+    description: msg("fields.any_runs_once_on_an_available_node"),
   }),
   nextRun: field(z.string(), {
-    label: "Next run (UTC)",
-    description:
-      "The next matching schedule time in UTC. A dash means there is no upcoming occurrence.",
+    label: msg("fields.next_run_utc"),
+    description: msg("fields.the_next_matching_schedule_time_in_utc"),
   }),
   scheduled: field(z.string(), {
-    label: "Scheduled (UTC)",
-    description:
-      "The UTC occurrence time for this run. Dispatch may follow on the next scheduler tick.",
+    label: msg("fields.scheduled_utc"),
+    description: msg("fields.the_utc_occurrence_time_for_this_run"),
   }),
   started: field(z.string(), {
-    label: "Started (UTC)",
-    description:
-      "When this run started executing in UTC. A dash means it has not started.",
+    label: msg("fields.started_utc"),
+    description: msg("fields.when_this_run_started_executing_in_utc"),
   }),
   finished: field(z.string(), {
-    label: "Finished (UTC)",
-    description:
-      "When this run completed in UTC. A dash means completion has not been recorded.",
+    label: msg("fields.finished_utc"),
+    description: msg("fields.when_this_run_completed_in_utc_a"),
   }),
   arguments: field(z.string(), {
-    label: "Inputs (JSON)",
-    description:
-      'Values passed to the program, in order. Use a JSON array such as `[{"message":"Hello"}]`, or `[]` for no inputs.',
+    label: msg("fields.inputs_json"),
+    description: msg("fields.values_passed_to_the_program_in_order"),
   }),
   sandboxGroup: runtimeInfo.shape.sandboxGroup,
   enabled: field(z.boolean(), {
-    label: "Enabled",
-    description:
-      "Allow this schedule to create new runs. Pausing does not cancel runs already queued or running.",
+    label: msg("fields.enabled"),
+    description: msg("fields.allow_this_schedule_to_create_new_runs"),
   }),
   datetimes: field(z.string(), {
-    label: "Specific datetimes (UTC)",
-    description:
-      "Specific UTC appointments, one `YYYY-MM-DD HH:MM` datetime per line. These can be combined with a recurring pattern.",
+    label: msg("fields.specific_datetimes_utc"),
+    description: msg("fields.specific_utc_appointments_one_yyyy_mm_dd"),
   }),
   recurring: field(z.boolean(), {
-    label: "Repeat",
-    description:
-      "Add a recurring pattern alongside any specific UTC appointments.",
+    label: msg("fields.repeat"),
+    description: msg("fields.add_a_recurring_pattern_alongside_any_specific"),
   }),
   startDate: field(z.string(), {
-    label: "Start date (UTC)",
-    description: "The first UTC date on which the recurring pattern may run.",
+    label: msg("fields.start_date_utc"),
+    description: msg("fields.the_first_utc_date_on_which_the"),
   }),
   monthIncluded: field(z.boolean(), {
-    label: "Month included",
-    description:
-      "Include this month in the recurring pattern. Only checked months can produce recurring runs.",
+    label: msg("fields.month_included"),
+    description: msg("fields.include_this_month_in_the_recurring_pattern"),
   }),
   weekdayIncluded: field(z.boolean(), {
-    label: "Weekday included",
-    description:
-      "Run on this weekday at each listed UTC time, within the selected months.",
+    label: msg("fields.weekday_included"),
+    description: msg("fields.run_on_this_weekday_at_each_listed"),
   }),
   dayMode: field(z.enum(["weekdays", "dates"]), {
-    label: "Choose days by",
-    description:
-      "Choose weekdays such as Monday, or numbered dates such as the 1st and 15th of each month.",
+    label: msg("fields.choose_days_by"),
+    description: msg("fields.choose_weekdays_such_as_monday_or_numbered"),
   }),
   dates: field(z.string(), {
-    label: "Dates of month",
-    description:
-      "Comma-separated dates from **1** through **31**. Dates missing from a month are skipped.",
+    label: msg("admin.dates_of_month"),
+    description: msg("fields.comma_separated_dates_from_1_through_31"),
   }),
   times: field(z.string(), {
-    label: "Times (UTC)",
-    description:
-      "Separate 24-hour `HH:MM` times with commas, for example `09:00, 14:30`.",
+    label: msg("fields.times_utc"),
+    description: msg("fields.separate_24_hour_hh_mm_times_with"),
   }),
   executionId: field(z.string(), {
-    label: "Execution ID",
-    description:
-      "The kernel job execution associated with this run, available after execution returns its identity.",
+    label: msg("fields.execution_id"),
+    description: msg("fields.the_kernel_job_execution_associated_with_this"),
   }),
   contextId: field(z.string(), {
-    label: "Context ID",
-    description:
-      "The execution context used to correlate this run with its logs and child work.",
+    label: msg("fields.context_id"),
+    description: msg("fields.the_execution_context_used_to_correlate_this"),
   }),
   failure: field(z.string(), {
-    label: "Failure",
-    description: "The reported reason this run failed or was interrupted.",
+    label: msg("fields.failure"),
+    description: msg("fields.the_reported_reason_this_run_failed_or"),
   }),
   output: field(z.string(), {
-    label: "Output (JSON)",
-    description:
-      "The program result as JSON. Pending means this run has not yet returned a result.",
+    label: msg("fields.output_json"),
+    description: msg("fields.the_program_result_as_json_pending_means"),
   }),
   capture: field(z.string(), {
-    label: "Capture",
-    description:
-      "Whether the stored result is complete or was shortened because it exceeded the capture limit.",
+    label: msg("fields.capture"),
+    description: msg("fields.whether_the_stored_result_is_complete_or"),
     valueHelp: choiceHelp(z.string(), [
-      "Complete",
-      "Output exceeded the capture limit.",
+      msg("admin.complete"),
+      msg("admin.output_exceeded_the_capture_limit"),
     ]),
   }),
 });

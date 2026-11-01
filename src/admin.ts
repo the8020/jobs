@@ -1,3 +1,5 @@
+import { text as localizedText } from "/p/the8020/i18n/mod.ts";
+import { msg } from "/p/the8020/jobs/i18n/messages.ts";
 import { listPrograms } from "/p/the8020/packages/programs.ts";
 import { jobInfo, nodeField, runId, scheduleId } from "./fields.ts";
 import { sourceInfo } from "/p/the8020/packages/types/source.ts";
@@ -18,7 +20,7 @@ import {
   callScreen,
   field,
   invokeProgram,
-  type LayoutDocument,
+  type LayoutDeclaration,
   Model,
   presentPage,
   ProgramExecutionError,
@@ -65,8 +67,8 @@ function listLayout(
   id: string,
   bind: string,
   display: string[],
-  toolbar: LayoutDocument["root"]["toolbar"] = [],
-): LayoutDocument {
+  toolbar: LayoutDeclaration["root"]["toolbar"] = [],
+): LayoutDeclaration {
   return {
     schema: 1,
     id,
@@ -88,7 +90,9 @@ export async function jobs(scheduleId = "", staticJobs = false): Promise<void> {
         program: item.programId,
         user: item.username,
         node: nodeText(item.node),
-        status: item.enabled ? "Scheduled" : "Paused",
+        status: item.enabled
+          ? localizedText(msg("admin.scheduled"))
+          : localizedText(msg("admin.paused")),
         nextRun: dateText(item.nextRunAt),
       })),
     };
@@ -96,7 +100,9 @@ export async function jobs(scheduleId = "", staticJobs = false): Promise<void> {
     screenModel.data = screenModelData;
     const event = await callScreen({
       id: staticJobs ? "static-jobs-list" : "jobs-list",
-      title: staticJobs ? "Static jobs" : "Jobs",
+      title: staticJobs
+        ? localizedText(msg("admin.static_jobs"))
+        : localizedText(msg("admin.jobs")),
       schema: screenModelSchema,
       model: screenModel,
       layout: listLayout("jobs-list", "schedules", [
@@ -106,21 +112,31 @@ export async function jobs(scheduleId = "", staticJobs = false): Promise<void> {
         "nextRun",
       ], [
         ...(!staticJobs
-          ? [{ id: "add", label: "New schedule", kind: "primary" as const }]
+          ? [{
+            id: "add",
+            label: msg("admin.new_schedule"),
+            kind: "primary" as const,
+          }]
           : []),
-        { id: "refresh", label: "[[icon=refresh]] Refresh" },
-        ...(offset > 0 ? [{ id: "previous", label: "Previous" }] : []),
-        ...(page.hasMore ? [{ id: "next", label: "Next" }] : []),
+        { id: "refresh", label: msg("admin.refresh") },
+        ...(offset > 0
+          ? [{ id: "previous", label: msg("admin.previous") }]
+          : []),
+        ...(page.hasMore ? [{ id: "next", label: msg("admin.next") }] : []),
       ]),
       header: {
         actions: [
           ...(!staticJobs
             ? [
-              { id: "run", label: "Run program", kind: "primary" as const },
-              { id: "static", label: "Static jobs" },
+              {
+                id: "run",
+                label: msg("admin.run_program"),
+                kind: "primary" as const,
+              },
+              { id: "static", label: msg("admin.static_jobs") },
             ]
             : []),
-          { id: "history", label: "Run history" },
+          { id: "history", label: msg("admin.run_history") },
         ],
       },
     });
@@ -173,7 +189,7 @@ function editorSchema(
   return z.object({
     name: field(jobInfo.shape.name, {
       readOnly,
-      label: "Name",
+      label: msg("admin.name"),
       length: "long",
       hidden: interactive,
     }),
@@ -190,12 +206,12 @@ function editorSchema(
     }),
     username: field(jobInfo.shape.runAs, {
       readOnly,
-      label: "Run as",
+      label: msg("admin.run_as"),
       hidden: interactive,
     }),
     sandboxGroup: field(jobInfo.shape.sandboxGroup, {
       readOnly,
-      placeholder: "Default",
+      placeholder: msg("admin.default"),
       hidden: interactive || !advanced,
     }),
     node: field(nodeField(options.nodes), {
@@ -241,9 +257,9 @@ function editorSchema(
       readOnly,
       reactive: true,
       hidden: !scheduled || !model.recurring,
-      options: [{ value: "weekdays", label: "Days of week" }, {
+      options: [{ value: "weekdays", label: msg("admin.days_of_week") }, {
         value: "dates",
-        label: "Dates of month",
+        label: msg("admin.dates_of_month"),
       }],
     }),
     weekdays: z.object(
@@ -281,18 +297,18 @@ function editorLayout(
   model: EditorModel,
   scheduled: boolean,
   interactive: boolean,
-): LayoutDocument {
-  const groups: LayoutDocument["root"][] = [
+): LayoutDeclaration {
+  const groups: LayoutDeclaration["root"][] = [
     {
       id: "program",
       type: "field-group",
-      title: "Program",
+      title: msg("admin.program"),
       controls: [...(interactive ? [] : ["name"]), "programId", "arguments"],
     },
     ...(interactive ? [] : [{
       id: "execution",
       type: "field-group" as const,
-      title: "Execution",
+      title: msg("admin.execution"),
       controls: ["username"],
     }]),
   ];
@@ -300,7 +316,7 @@ function editorLayout(
     groups.push({
       id: "schedule",
       type: "field-group",
-      title: "Schedule",
+      title: msg("admin.schedule"),
       controls: ["enabled", "datetimes", "recurring", "startDate"],
     });
     if (model.recurring) {
@@ -308,7 +324,7 @@ function editorLayout(
         {
           id: "days",
           type: "field-group",
-          title: "Days and times",
+          title: msg("admin.days_and_times"),
           controls: [
             "dayMode",
             ...(model.dayMode === "weekdays"
@@ -353,9 +369,9 @@ async function staticJob(id: string, advanced = false): Promise<void> {
     ).extend({
       source: field(jobInfo.shape.staticKey, { readOnly: true }),
       nextRun: field(jobInfo.shape.nextRun, { readOnly: true }),
-      lastRun: field(runId, { label: "Last run", readOnly: true }),
+      lastRun: field(runId, { label: msg("admin.last_run"), readOnly: true }),
       lastState: field(jobInfo.shape.state.nullable(), {
-        label: "Last result",
+        label: msg("admin.last_result"),
         readOnly: true,
       }),
       lastFinished: field(jobInfo.shape.finished, { readOnly: true }),
@@ -364,14 +380,14 @@ async function staticJob(id: string, advanced = false): Promise<void> {
     layout.root.children!.unshift({
       id: "static-status",
       type: "field-group",
-      title: "Schedule",
+      title: msg("admin.schedule"),
       controls: ["source", "nextRun", "lastRun", "lastState", "lastFinished"],
     });
     if (advanced) {
       layout.root.children!.push({
         id: "static-placement",
         type: "field-group",
-        title: "Where to run",
+        title: msg("admin.where_to_run"),
         controls: [
           "node",
           "sandboxGroup",
@@ -394,9 +410,11 @@ async function staticJob(id: string, advanced = false): Promise<void> {
       layout,
       header: {
         actions: [
-          ...(!advanced ? [{ id: "advanced", label: "Advanced" }] : []),
-          { id: "history", label: "Run history" },
-          { id: "refresh", label: "[[icon=refresh]] Refresh" },
+          ...(!advanced
+            ? [{ id: "advanced", label: msg("admin.advanced") }]
+            : []),
+          { id: "history", label: msg("admin.run_history") },
+          { id: "refresh", label: msg("admin.refresh") },
         ],
       },
     });
@@ -437,10 +455,10 @@ export async function editJob(
     const event = await callScreen({
       id: "job-editor",
       title: definition
-        ? `Job ${definition.input.name}`
+        ? localizedText(msg("ui.job_name", { name: definition.input.name }))
         : scheduled
-        ? "New schedule"
-        : "Run program",
+        ? localizedText(msg("admin.new_schedule"))
+        : localizedText(msg("admin.run_program")),
       schema: editorSchema(model, scheduled, options, interactive),
       model: screenModel,
       layout: editorLayout(model, scheduled, interactive),
@@ -448,15 +466,19 @@ export async function editJob(
         actions: [
           {
             id: scheduled ? "save" : "run",
-            label: scheduled ? "Save" : "Run",
+            label: scheduled
+              ? localizedText(msg("admin.save"))
+              : localizedText(msg("admin.run")),
             kind: "primary",
           },
-          ...(!interactive ? [{ id: "advanced", label: "Advanced" }] : []),
+          ...(!interactive
+            ? [{ id: "advanced", label: msg("admin.advanced") }]
+            : []),
           ...(definition
-            ? [{ id: "run-saved", label: "Run now" }, {
+            ? [{ id: "run-saved", label: msg("admin.run_now") }, {
               id: "history",
-              label: "Run history",
-            }, { id: "refresh", label: "[[icon=refresh]] Refresh" }]
+              label: msg("admin.run_history"),
+            }, { id: "refresh", label: msg("admin.refresh") }]
             : []),
         ],
       },
@@ -468,7 +490,7 @@ export async function editJob(
         await presentPage(() =>
           callScreen({
             id: "job-editor-advanced",
-            title: "Advanced job settings",
+            title: msg("admin.advanced_job_settings"),
             schema: editorSchema(model, scheduled, options, false, true),
             model: new Model(model),
             controls: [
@@ -486,14 +508,14 @@ export async function editJob(
                   {
                     id: "placement",
                     type: "field-group",
-                    title: "Where to run",
+                    title: msg("admin.where_to_run"),
                     controls: ["node", "sandboxGroup"],
                   },
                   ...(scheduled && model.recurring
                     ? [{
                       id: "months",
                       type: "field-group" as const,
-                      title: "Months to include",
+                      title: msg("admin.months_to_include"),
                       controls: months.map((_, i) => `months.m${i + 1}`),
                     }]
                     : []),
@@ -501,7 +523,11 @@ export async function editJob(
               },
             },
             header: {
-              actions: [{ id: "done", label: "Done", kind: "primary" }],
+              actions: [{
+                id: "done",
+                label: msg("admin.done"),
+                kind: "primary",
+              }],
             },
           })
         );
@@ -513,7 +539,7 @@ export async function editJob(
           enabled: model.enabled,
           input: inputFromModel(model, true),
         });
-        sendMessage("Schedule saved.", "success");
+        sendMessage(localizedText(msg("admin.schedule_saved")), "success");
       }
       if (event.action === "run") {
         const selected = options.definitions.find((program) =>
@@ -560,7 +586,12 @@ export async function editJob(
 
 async function openSubmitted(runs: JobRunSummary[], scheduleId = "") {
   sendMessage(
-    `${runs.length} ${runs.length === 1 ? "run" : "runs"} queued.`,
+    localizedText(
+      msg("admin.value1_value2_queued", {
+        value1: runs.length,
+        value2: runs.length === 1 ? "run" : "runs",
+      }),
+    ),
     "success",
   );
   if (runs.length === 1) await runDetail(runs[0]!.id);
@@ -588,7 +619,7 @@ export async function runHistory(scheduleId = ""): Promise<void> {
     screenModel1.data = screenModel1Data;
     const event = await callScreen({
       id: "job-runs",
-      title: "Run history",
+      title: msg("admin.run_history"),
       schema: screenModel1Schema,
       model: screenModel1,
       layout: listLayout("job-runs", "runs", [
@@ -598,9 +629,11 @@ export async function runHistory(scheduleId = ""): Promise<void> {
         "scheduled",
         "finished",
       ], [
-        { id: "refresh", label: "[[icon=refresh]] Refresh" },
-        ...(offset > 0 ? [{ id: "previous", label: "Previous" }] : []),
-        ...(page.hasMore ? [{ id: "next", label: "Next" }] : []),
+        { id: "refresh", label: msg("admin.refresh") },
+        ...(offset > 0
+          ? [{ id: "previous", label: msg("admin.previous") }]
+          : []),
+        ...(page.hasMore ? [{ id: "next", label: msg("admin.next") }] : []),
       ]),
     });
     if (event.action === BACK_EVENT) return;
@@ -706,7 +739,10 @@ export async function runDetail(
       }),
       state: text(jobInfo.shape.state),
       program: field(programField, { readOnly: true, length: "long" }),
-      user: field(jobInfo.shape.runAs, { label: "Run as", readOnly: true }),
+      user: field(jobInfo.shape.runAs, {
+        label: msg("admin.run_as"),
+        readOnly: true,
+      }),
       sandbox: field(sandboxField, { readOnly: true }),
       worker: field(workerField, { readOnly: true }),
       heap: text(runtimeInfo.shape.heap),
@@ -742,7 +778,8 @@ export async function runDetail(
       program: run.programId,
       user: run.username,
       node: run.nodeId || nodeText(run.targetNode),
-      sandboxGroup: run.input.sandboxGroup || "Default",
+      sandboxGroup: run.input.sandboxGroup ||
+        localizedText(msg("admin.default")),
       sandbox: live?.sandbox_id || run.sandboxId,
       worker: live?.worker_id || run.workerId,
       execution: run.executionId,
@@ -754,29 +791,33 @@ export async function runDetail(
       failure: run.failure || "—",
       inputs: JSON.stringify(run.input.arguments, null, 2),
       output: run.state === "queued" || run.state === "running"
-        ? "Pending"
+        ? localizedText(msg("admin.pending"))
         : JSON.stringify(run.result, null, 2),
       logs: logPage?.state === "expired"
-        ? "These logs have expired."
+        ? localizedText(msg("admin.these_logs_have_expired"))
         : logPage?.state === "unavailable"
-        ? "Logs are currently unavailable."
+        ? localizedText(msg("admin.logs_are_currently_unavailable"))
         : logPage
         ? logPage.records.map(formatLogRecord).join("\n") ||
-          "No log messages in this page."
+          localizedText(msg("admin.no_log_messages_in_this_page"))
         : run.state === "queued" || run.state === "running"
-        ? "Logs will be available after this run finishes."
-        : "Logs for this run are unavailable.",
+        ? localizedText(msg("admin.logs_will_be_available_after_this_run"))
+        : localizedText(msg("admin.logs_for_this_run_are_unavailable")),
       capture: run.truncated
-        ? "Output exceeded the capture limit."
-        : "Complete",
+        ? localizedText(msg("admin.output_exceeded_the_capture_limit"))
+        : localizedText(msg("admin.complete")),
     };
     screenModel2 ??= new Model(screenModel2Data);
     screenModel2.data = screenModel2Data;
     const event = await callScreen({
       id: view === "overview" ? "job-run" : `job-run-${view}`,
       title: view === "overview"
-        ? `Run ${run.name}`
-        : `${view === "logs" ? "Logs" : "Advanced"} · ${run.name}`,
+        ? localizedText(msg("ui.run_name", { name: run.name }))
+        : `${
+          view === "logs"
+            ? localizedText(msg("admin.logs"))
+            : localizedText(msg("admin.advanced"))
+        } · ${run.name}`,
       schema,
       model: screenModel2,
       controls: (view === "logs" ? ["logs"] : view === "advanced"
@@ -832,7 +873,7 @@ export async function runDetail(
               {
                 id: "results",
                 type: "field-group",
-                title: "Result",
+                title: msg("admin.result"),
                 controls: ["output", "capture"],
               },
             ]
@@ -840,7 +881,7 @@ export async function runDetail(
             ? [{
               id: "logs",
               type: "field-group",
-              title: "Logs",
+              title: msg("admin.logs"),
               controls: ["logs"],
             }]
             : [
@@ -861,7 +902,7 @@ export async function runDetail(
               {
                 id: "inputs",
                 type: "field-group",
-                title: "Inputs",
+                title: msg("admin.inputs"),
                 controls: ["inputs"],
               },
             ],
@@ -871,20 +912,20 @@ export async function runDetail(
         actions: [
           ...(view === "overview"
             ? [
-              { id: "logs", label: "Logs" },
-              { id: "advanced", label: "Advanced" },
+              { id: "logs", label: msg("admin.logs") },
+              { id: "advanced", label: msg("admin.advanced") },
               ...(run.scheduleId
-                ? [{ id: "schedule", label: "Open schedule" }]
+                ? [{ id: "schedule", label: msg("admin.open_schedule") }]
                 : []),
             ]
             : []),
-          { id: "refresh", label: "[[icon=refresh]] Refresh" },
+          { id: "refresh", label: msg("admin.refresh") },
           ...(view === "logs" && run.executionId
             ? [
-              { id: "first-logs", label: "First logs" },
-              { id: "recent-logs", label: "Recent logs" },
+              { id: "first-logs", label: msg("admin.first_logs") },
+              { id: "recent-logs", label: msg("admin.recent_logs") },
               ...(logPage?.more && logPage.cursor
-                ? [{ id: "next-logs", label: "Next logs" }]
+                ? [{ id: "next-logs", label: msg("admin.next_logs") }]
                 : []),
             ]
             : []),
