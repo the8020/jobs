@@ -1,3 +1,5 @@
+import { localizedText as resolveMessage } from "/p/the8020/i18n/mod.ts";
+import { msg as messageSymbol } from "/p/the8020/jobs/i18n/messages.ts";
 import { text as localizedText } from "/p/the8020/i18n/mod.ts";
 import { msg } from "/p/the8020/jobs/i18n/messages.ts";
 import { listPrograms } from "/p/the8020/packages/programs.ts";
@@ -443,7 +445,11 @@ export async function editJob(
     const program = options.definitions.find((item) =>
       item.program_id === programId
     );
-    if (!program) throw new TypeError("Select a ready program.");
+    if (!program) {
+      throw new TypeError(
+        await resolveMessage(messageSymbol("errors.select_a_ready_program")),
+      );
+    }
     model.programId = program.program_id;
     model.name = program.description || program.name;
   }
@@ -545,7 +551,13 @@ export async function editJob(
         const selected = options.definitions.find((program) =>
           program.program_id === model.programId
         );
-        if (!selected) throw new TypeError("Select a ready program.");
+        if (!selected) {
+          throw new TypeError(
+            await resolveMessage(
+              messageSymbol("errors.select_a_ready_program"),
+            ),
+          );
+        }
         if (selected.metadata_error) {
           throw new TypeError(selected.metadata_error);
         }

@@ -1,3 +1,9 @@
+import { prepareTexts } from "/p/the8020/i18n/mod.ts";
+import {
+  localizedText as resolveMessage,
+  text as formatMessage,
+} from "/p/the8020/i18n/mod.ts";
+import { msg as messageSymbol } from "/p/the8020/jobs/i18n/messages.ts";
 import { kernel, newId } from "@the8020/kernel";
 import { db, type JSONValue } from "/p/the8020/db/mod.ts";
 import { z } from "/p/the8020/db/fields.ts";
@@ -74,8 +80,15 @@ export async function validateJobInput(
   input: JobInput,
   scheduled: boolean,
 ): Promise<JobInput> {
+  await prepareTexts(
+    messageSymbol("errors.enter_specific_datetimes_or_enable_recurrence"),
+  );
   if (new TextEncoder().encode(JSON.stringify(input)).length > 64 * 1024) {
-    throw new Error("Job inputs must be JSON no larger than 64 KiB.");
+    throw new Error(
+      await resolveMessage(
+        messageSymbol("errors.job_inputs_must_be_json_no_larger_than_64_kib"),
+      ),
+    );
   }
   const parsed = inputSchema.parse(json(input));
   parsed.node ||= "any";
@@ -96,15 +109,27 @@ export async function validateJobInput(
     ).executeTakeFirst(),
   ]);
   if (!programs.some((program) => program.program_id === parsed.programId)) {
-    throw new Error("Select a ready program.");
+    throw new Error(
+      await resolveMessage(messageSymbol("errors.select_a_ready_program")),
+    );
   }
   if (user?.enabled === false || (!user && parsed.username !== "system")) {
-    throw new Error("Select an enabled execution user.");
+    throw new Error(
+      await resolveMessage(
+        messageSymbol("errors.select_an_enabled_execution_user"),
+      ),
+    );
   }
   if (
     parsed.node !== "any" && parsed.node !== "all" &&
     (!parsed.node.startsWith("node:") || !nodes.includes(parsed.node.slice(5)))
-  ) throw new Error("Select an enabled node, Any, or All.");
+  ) {
+    throw new Error(
+      await resolveMessage(
+        messageSymbol("errors.select_an_enabled_node_any_or_all"),
+      ),
+    );
+  }
   return parsed;
 }
 
@@ -188,7 +213,7 @@ async function wake(): Promise<void> {
 
 function offsetOf(offset: number) {
   if (!Number.isSafeInteger(offset) || offset < 0 || offset > 1000000) {
-    throw new Error("Invalid page offset.");
+    throw new Error(formatMessage(messageSymbol("errors.invalid_page_offset")));
   }
   return offset;
 }
@@ -202,7 +227,11 @@ async function inspect(id: string): Promise<JobDefinition> {
     "=",
     id,
   ).executeTakeFirst();
-  if (!row) throw new Error("Schedule was not found.");
+  if (!row) {
+    throw new Error(
+      await resolveMessage(messageSymbol("errors.schedule_was_not_found")),
+    );
+  }
   return definition(row);
 }
 async function submit(
@@ -214,7 +243,11 @@ async function submit(
     ? (await enabledNodes()).map((id) => "node:" + id)
     : [selected.node];
   if (!targets.length || targets.length > 256) {
-    throw new Error("Select between 1 and 256 enabled nodes.");
+    throw new Error(
+      await resolveMessage(
+        messageSymbol("errors.select_between_1_and_256_enabled_nodes"),
+      ),
+    );
   }
   const occurrenceId = newId("occ"), at = new Date();
   const rows = targets.map((target) =>
@@ -230,11 +263,21 @@ export const jobStore = {
     inputSchema.shape.programId.parse(ownerKey);
     const current = await db.selectFrom(Schedules.table).selectAll()
       .where("ownerKey", "=", ownerKey).executeTakeFirst();
-    if (current?.sourcePackage) throw new Error("Static jobs are read-only.");
+    if (current?.sourcePackage) {
+      throw new Error(
+        await resolveMessage(messageSymbol("errors.static_jobs_are_read_only")),
+      );
+    }
     if (current) return definition(current);
     const selected = await validateJobInput(input, true), now = new Date();
     const firstRunAt = nextOccurrence(selected.schedule, now);
-    if (!firstRunAt) throw new Error("The schedule has no future occurrence.");
+    if (!firstRunAt) {
+      throw new Error(
+        await resolveMessage(
+          messageSymbol("errors.the_schedule_has_no_future_occurrence"),
+        ),
+      );
+    }
     await db.insertInto(Schedules.table).values({
       ...selected,
       id: newId("sch"),
@@ -255,18 +298,30 @@ export const jobStore = {
   },
   async save(request: SaveJobInput): Promise<JobDefinition> {
     if (request.id && (await inspect(request.id)).staticKey) {
-      throw new Error("Static jobs are read-only.");
+      throw new Error(
+        await resolveMessage(messageSymbol("errors.static_jobs_are_read_only")),
+      );
     }
     if (
       !Number.isSafeInteger(request.revision) || request.revision < 0 ||
       typeof request.enabled !== "boolean"
-    ) throw new Error("Invalid schedule revision or enabled state.");
+    ) {
+      throw new Error(
+        await resolveMessage(
+          messageSymbol("errors.invalid_schedule_revision_or_enabled_state"),
+        ),
+      );
+    }
     const input = await validateJobInput(request.input, true), now = new Date();
     const nextRunAt = request.enabled
       ? nextOccurrence(input.schedule, now)
       : null;
     if (request.enabled && !nextRunAt) {
-      throw new Error("The schedule has no future occurrence.");
+      throw new Error(
+        await resolveMessage(
+          messageSymbol("errors.the_schedule_has_no_future_occurrence"),
+        ),
+      );
     }
     const values = {
       ...input,
@@ -285,11 +340,19 @@ export const jobStore = {
         .where("sourcePackage", "is", null)
         .executeTakeFirst();
       if (updated.numUpdatedRows !== 1n) {
-        throw new Error("Schedule changed; refresh before saving.");
+        throw new Error(
+          await resolveMessage(
+            messageSymbol("errors.schedule_changed_refresh_before_saving"),
+          ),
+        );
       }
     } else {
       if (request.revision !== 0) {
-        throw new Error("Invalid initial schedule revision.");
+        throw new Error(
+          await resolveMessage(
+            messageSymbol("errors.invalid_initial_schedule_revision"),
+          ),
+        );
       }
       await db.insertInto(Schedules.table).values({
         ...values,
@@ -334,7 +397,11 @@ export const jobStore = {
   submit: (input: JobInput) => submit(input),
   async runNow(id: string): Promise<JobRunSummary[]> {
     const job = await inspect(id);
-    if (job.staticKey) throw new Error("Static jobs are read-only.");
+    if (job.staticKey) {
+      throw new Error(
+        await resolveMessage(messageSymbol("errors.static_jobs_are_read_only")),
+      );
+    }
     return submit(job.input, id);
   },
   runs: {
@@ -352,7 +419,11 @@ export const jobStore = {
         "=",
         id,
       ).executeTakeFirst();
-      if (!row) throw new Error("Run was not found.");
+      if (!row) {
+        throw new Error(
+          await resolveMessage(messageSymbol("errors.run_was_not_found")),
+        );
+      }
       return {
         ...runSummary(row),
         input: row.input as unknown as JobInput,
