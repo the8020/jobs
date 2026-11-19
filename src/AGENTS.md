@@ -13,6 +13,9 @@ Parent DOX: [jobs DOX](../AGENTS.md).
 
 # Local Contracts
 
+- Only the system-published package version updates shared static schedules. A
+  node serving an earlier checkout leaves those schedules in place.
+
 - New schedule, list refresh, and backend history paging belong in their list
   toolbars. Run program, Static jobs, and Run history navigation stay in the
   page header.

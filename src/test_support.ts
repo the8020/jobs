@@ -17,6 +17,7 @@ const tables = await Promise.all([
   import("../tables/runs.ts"),
   import("../tables/cursors.ts"),
   import("/p/the8020/packages/tables/packages.ts"),
+  import("/p/the8020/packages/tables/node_packages.ts"),
   import("/p/the8020/system/tables/revisions.ts"),
   import("/p/the8020/uui/tables/list_layouts.ts"),
 ]);
@@ -47,8 +48,9 @@ export class DatabaseFixture {
           column.logical_type === "boolean" || column.logical_type === "integer"
             ? "INTEGER"
             : "TEXT"
-        }${column.primary_key ? " PRIMARY KEY" : ""}`
+        }`
       );
+      columns.push(`PRIMARY KEY (${table.primary_key.join(",")})`);
       this.database.exec(
         `CREATE TABLE "${table.table_id}" (${columns.join(",")})`,
       );

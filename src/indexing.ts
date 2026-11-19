@@ -2,7 +2,7 @@ import { newId } from "@the8020/kernel";
 import { db } from "/p/the8020/db/mod.ts";
 import { z } from "/p/the8020/db/fields.ts";
 import { parse } from "/p/the8020/packages/toml.ts";
-import Packages from "/p/the8020/packages/tables/packages.ts";
+import { publishesSharedIndex } from "/p/the8020/packages/src/index-scope.ts";
 import { lockIndexRevision } from "/p/the8020/system/src/indexes.ts";
 import Schedules from "../tables/schedules.ts";
 import { nextOccurrence } from "./calendar.ts";
@@ -146,19 +146,7 @@ async function indexPackage(
     : new Map<string, JobInput>();
   await db.transaction().execute(async (tx) => {
     await lockIndexRevision(tx);
-    const current = await tx.selectFrom(Packages.table).select([
-      "state",
-      "activeCommit",
-    ])
-      .where("packageId", "=", scope.package_id).executeTakeFirst();
-    if (
-      scope.active
-        ? current?.state !== "ready" ||
-          current.activeCommit !== scope.package_commit
-        : current?.state === "ready"
-    ) {
-      throw new Error(`Package ${scope.package_id} changed while indexing`);
-    }
+    if (!await publishesSharedIndex(tx, scope)) return;
     const existing = await tx.selectFrom(Schedules.table).selectAll()
       .where("sourcePackage", "=", scope.package_id).execute();
     const now = new Date();
