@@ -1,11 +1,21 @@
+import { text as formatMessage } from "/p/the8020/i18n/mod.ts";
+import { msg as messageSymbol } from "/p/the8020/jobs/i18n/messages.ts";
 import type { JobSchedule } from "./types.ts";
 
 export function validateCalendar(schedule: JobSchedule): void {
   if (schedule.datetimes.length > 128) {
-    throw new Error("At most 128 specific datetimes are allowed.");
+    throw new Error(
+      formatMessage(
+        messageSymbol("errors.at_most_128_specific_datetimes_are_allowed"),
+      ),
+    );
   }
   if (!schedule.datetimes.length && !schedule.recurrence) {
-    throw new Error("Enter specific datetimes or enable recurrence.");
+    throw new Error(
+      formatMessage(
+        messageSymbol("errors.enter_specific_datetimes_or_enable_recurrence"),
+      ),
+    );
   }
   for (const value of schedule.datetimes) {
     if (
@@ -16,7 +26,11 @@ export function validateCalendar(schedule: JobSchedule): void {
             0,
             10,
           ) !== value.slice(0, 10))
-    ) throw new Error("Invalid specific datetime.");
+    ) {
+      throw new Error(
+        formatMessage(messageSymbol("errors.invalid_specific_datetime")),
+      );
+    }
   }
   const r = schedule.recurrence;
   if (!r) return;
@@ -24,25 +38,53 @@ export function validateCalendar(schedule: JobSchedule): void {
   if (
     !/^\d{4}-\d\d-\d\d$/.test(r.startDate) || !validDate(start) ||
     start.toISOString().slice(0, 10) !== r.startDate
-  ) throw new Error("Start date must be a valid YYYY-MM-DD date.");
-  numbers(r.months, 1, 12, "months");
+  ) {
+    throw new Error(
+      formatMessage(
+        messageSymbol("errors.start_date_must_be_a_valid_yyyy_mm_dd_date"),
+      ),
+    );
+  }
+  numbers(r.months, 1, 12, "errors.select_valid_months");
   if (r.dayMode === "dates") {
-    numbers(r.dates, 1, 31, "month dates");
-    if (r.weekdays.length) throw new Error("Select dates or weekdays.");
+    numbers(r.dates, 1, 31, "errors.select_valid_month_dates");
+    if (r.weekdays.length) {
+      throw new Error(
+        formatMessage(messageSymbol("errors.select_dates_or_weekdays")),
+      );
+    }
   } else if (r.dayMode === "weekdays") {
-    numbers(r.weekdays, 0, 6, "weekdays");
-    if (r.dates.length) throw new Error("Select dates or weekdays.");
-  } else throw new Error("Select dates or weekdays.");
+    numbers(r.weekdays, 0, 6, "errors.select_valid_weekdays");
+    if (r.dates.length) {
+      throw new Error(
+        formatMessage(messageSymbol("errors.select_dates_or_weekdays")),
+      );
+    }
+  } else {throw new Error(
+      formatMessage(messageSymbol("errors.select_dates_or_weekdays")),
+    );}
   if (
     !r.times.length || r.times.length > 96 ||
     r.times.some((value) => !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value))
-  ) throw new Error("Enter between 1 and 96 times as HH:MM.");
+  ) {
+    throw new Error(
+      formatMessage(
+        messageSymbol("errors.enter_between_1_and_96_times_as_hh_mm"),
+      ),
+    );
+  }
   if (
     !nextOccurrence(
       { datetimes: [], recurrence: r },
       new Date(start.getTime() - 1),
     )
-  ) throw new Error("The selected months and dates never occur.");
+  ) {
+    throw new Error(
+      formatMessage(
+        messageSymbol("errors.the_selected_months_and_dates_never_occur"),
+      ),
+    );
+  }
 }
 
 function validDate(date: Date): boolean {
@@ -50,13 +92,19 @@ function validDate(date: Date): boolean {
     date.getUTCFullYear() <= 9998;
 }
 
-function numbers(values: number[], min: number, max: number, label: string) {
+function numbers(values: number[], min: number, max: number, key: string) {
   if (
     !values.length || new Set(values).size !== values.length ||
     values.some((value) =>
       !Number.isInteger(value) || value < min || value > max
     )
-  ) throw new Error(`Select valid ${label}.`);
+  ) {
+    throw new Error(
+      formatMessage(
+        messageSymbol(key),
+      ),
+    );
+  }
 }
 
 /** The first UTC occurrence strictly after the supplied instant. */
