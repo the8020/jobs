@@ -548,10 +548,12 @@ test("Jobs list exposes manual, schedule, history, and refresh actions", async (
   jobStore.list = () => Promise.resolve({ items: [], hasMore: false });
   (globalThis as unknown as Record<symbol, unknown>)[kernelInvokeSymbol] =
     ((operation, _input) =>
-      Promise.resolve(operation === "database.execute" ? { columns: [], rows: [] } : {
-        success: true,
-        result: { items: [], hasMore: false },
-      })) satisfies KernelInvoke;
+      Promise.resolve(
+        operation === "database.execute" ? { columns: [], rows: [] } : {
+          success: true,
+          result: { items: [], hasMore: false },
+        },
+      )) satisfies KernelInvoke;
   const removeContext = installSystemContext();
   const channel = new Channel(), unbind = bindSession(channel);
   try {

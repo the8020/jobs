@@ -1,7 +1,4 @@
-import {
-  localizedText as resolveMessage,
-  text as formatMessage,
-} from "/p/the8020/i18n/mod.ts";
+import { localizedText as resolveMessage } from "/p/the8020/i18n/mod.ts";
 import { msg as messageSymbol } from "/p/the8020/jobs/i18n/messages.ts";
 import { text as localizedText } from "/p/the8020/i18n/mod.ts";
 import { msg } from "/p/the8020/jobs/i18n/messages.ts";
